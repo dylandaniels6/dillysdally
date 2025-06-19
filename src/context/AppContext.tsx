@@ -356,7 +356,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [habits, setHabits] = useState<Habit[]>([]);
   const [climbingSessions, setClimbingSessions] = useState<ClimbingSession[]>([]);
   const [user, setUser] = useState<User | null>(null);
-  const [anonymousUserId] = useState<string>(getAnonymousUserId());
+  const [anonymousUserId, setAnonymousUserId] = useState<string>('');
+
+useEffect(() => {
+  if (typeof window !== 'undefined') {
+    setAnonymousUserId(getAnonymousUserId());
+  }
+}, []);
+
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'error' | 'offline'>('synced');
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   
