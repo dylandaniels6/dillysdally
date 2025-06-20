@@ -65,7 +65,7 @@ const Overview: React.FC = () => {
   }, [journalEntries, expenses, climbingSessions, habits]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-screen">
       {/* Animated Background */}
       <StarryBackground blur={isChatFocused || showChatHistory} />
       

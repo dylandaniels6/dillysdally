@@ -7,9 +7,10 @@ import AuthModal from '../auth/AuthModal';
 
 interface HeaderProps {
   toggleSidebar: () => void;
+  isTransparent?: boolean; // Add this line
 }
 
-const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
+const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false }) => { // Add isTransparent prop
   const { 
     settings, 
     setSettings, 
@@ -132,14 +133,16 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   return (
     <>
       <header className={`fixed top-0 left-0 right-0 z-10 transition-all duration-500 ease-out ${
-        isScrolled 
-          ? settings.darkMode 
-            ? 'bg-gray-950/80 backdrop-blur-2xl border-gray-800/50 shadow-2xl' 
-            : 'bg-white/80 backdrop-blur-2xl border-gray-200/50 shadow-xl'
-          : settings.darkMode 
-            ? 'bg-gray-950/60 backdrop-blur-xl border-gray-800/30' 
-            : 'bg-white/60 backdrop-blur-xl border-gray-200/30'
-      } border-b`}>
+        isTransparent 
+          ? '!border-0' // Explicitly remove border when transparent
+          : isScrolled 
+            ? settings.darkMode 
+              ? 'bg-gray-950/80 backdrop-blur-2xl border-gray-800/50 shadow-2xl border-b' 
+              : 'bg-white/80 backdrop-blur-2xl border-gray-200/50 shadow-xl border-b'
+            : settings.darkMode 
+              ? 'bg-gray-950/60 backdrop-blur-xl border-gray-800/30 border-b' 
+              : 'bg-white/60 backdrop-blur-xl border-gray-200/30 border-b'
+      }`}> {/* Remove border when transparent */}
         <div className="h-16 px-8">
           <div className="flex justify-between items-center h-full max-w-full">
             

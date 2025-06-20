@@ -20,6 +20,10 @@ interface NavItemProps {
   onClick: () => void;
 }
 
+interface SidebarProps {
+  isTransparent?: boolean; // Add this prop
+}
+
 const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => {
   const { settings } = useAppContext();
   
@@ -42,7 +46,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => 
   );
 };
 
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => { // Accept the prop
   const { currentView, setCurrentView, settings, user, signOut, isAuthenticated } = useAppContext();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -66,18 +70,14 @@ const Sidebar: React.FC = () => {
   return (
     <>
       <div className={`fixed left-0 top-0 h-full w-64 transition-colors duration-300 ${
-        settings.darkMode 
-          ? 'bg-gray-900 border-gray-800' 
-          : 'bg-white border-gray-200'
-      } border-r`}>
+        isTransparent 
+          ? `${settings.darkMode ? 'bg-gray-950/10' : 'bg-white/10'} backdrop-blur-xl` // No border
+          : settings.darkMode 
+            ? 'bg-gray-900 border-gray-800 border-r' 
+            : 'bg-white border-gray-200 border-r'
+      }`}>
         <div className="p-6">
-          <h1 className={`text-2xl font-bold mb-8 ${
-            settings.darkMode ? 'text-white' : 'text-gray-900'
-          }`}>
-            Dylan's Hub
-          </h1>
-          
-          <nav className="space-y-2">
+          <nav className="space-y-2 mt-16"> {/* Added mt-16 to account for header space */}
             {navItems.map((item) => (
               <NavItem
                 key={item.view}
