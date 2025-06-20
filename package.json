@@ -1,5 +1,5 @@
 {
-  "name": "modern-journal-finance-app",
+  "name": "Dilly's Dally",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,6 +13,7 @@
     "@supabase/supabase-js": "^2.39.7",
     "framer-motion": "^12.18.1",
     "lucide-react": "^0.344.0",
+    "openai": "^5.5.1",
     "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
