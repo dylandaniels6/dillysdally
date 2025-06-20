@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import Header from './common/Header';
 import Sidebar from './Sidebar';
-import Overview from '../views/Overview/Overview';
+import Overview from "./views/Overview/Overview";
 import DailyJournal from './views/DailyJournal';
 import Journal from './views/Journal';
 import MonthlyExpenses from './views/MonthlyExpenses';

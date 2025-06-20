@@ -79,26 +79,24 @@ const Overview: React.FC = () => {
         </button>
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-8 lg:py-16">
-        <div className="w-full max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Chat Section - Full width on mobile */}
-            <div className="lg:col-span-8">
-              <AIChat 
-                dailyRecap={dailyRecap}
-                isLoading={isLoading}
-                onFocusChange={setIsChatFocused}
-                onHistoryClick={() => setShowChatHistory(true)}
-              />
-            </div>
-
-            {/* Side Panel - Hidden on mobile */}
-            <div className="hidden lg:block lg:col-span-4 space-y-4">
-              <YesterdayRecap />
-              <TodoList />
-            </div>
+      {/* Main Content Container */}
+      <div className="relative z-10 min-h-screen">
+        {/* AI Chat - Centered independently */}
+        <div className="fixed inset-0 flex items-center justify-center px-4 pointer-events-none">
+          <div className="w-full max-w-3xl pointer-events-auto">
+            <AIChat 
+              dailyRecap={dailyRecap}
+              isLoading={isLoading}
+              onFocusChange={setIsChatFocused}
+              onHistoryClick={() => setShowChatHistory(true)}
+            />
           </div>
+        </div>
+
+        {/* Side Panel - Fixed position, hidden on mobile */}
+        <div className="hidden lg:block fixed right-8 top-1/2 transform -translate-y-1/2 w-80 max-h-[80vh] overflow-y-auto space-y-4">
+          <YesterdayRecap />
+          <TodoList />
         </div>
       </div>
 

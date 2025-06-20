@@ -57,10 +57,15 @@ const TodoList: React.FC = () => {
     e.preventDefault();
     if (!newTaskText.trim()) return;
 
+    // Find the smallest priority (to put new task first)
+    const minPriority = tasks.length > 0 
+      ? Math.min(...tasks.map(t => t.priority)) - 1
+      : 0;
+
     const newTask = {
       text: newTaskText,
       completed: false,
-      priority: tasks.length,
+      priority: minPriority,
       created_at: new Date().toISOString()
     };
 
@@ -73,7 +78,7 @@ const TodoList: React.FC = () => {
 
       if (error) throw error;
       
-      setTasks([...tasks, data]);
+      setTasks([data, ...tasks]);
       setNewTaskText('');
     } catch (error) {
       console.error('Error adding task:', error);
