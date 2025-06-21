@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Sun, Moon, Calendar, User, LogOut, Cloud, CloudOff, RefreshCw, Settings, Home } from 'lucide-react';
+import { Calendar, User, LogOut, Cloud, CloudOff, RefreshCw, Settings, Home } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import CalendarModal from '../views/CalendarModal';
 import AuthModal from '../auth/AuthModal';
@@ -48,10 +48,6 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const toggleDarkMode = () => {
-    setSettings({ ...settings, darkMode: !settings.darkMode });
-  };
 
   const handleSignOut = async () => {
     try {
@@ -234,32 +230,6 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
                   }`}></div>
                 </button>
               )}
-
-              {/* Theme Toggle - Enhanced with icon transition */}
-              <button
-                onClick={toggleDarkMode}
-                className={`group relative p-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-110 hover:-translate-y-0.5 ${
-                  settings.darkMode 
-                    ? 'text-gray-400 hover:text-yellow-400 hover:bg-gray-800/50 backdrop-blur-xl' 
-                    : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100/50 backdrop-blur-xl'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent`}
-                aria-label="Toggle theme"
-              >
-                <div className="relative overflow-hidden">
-                  {/* Icon transition with smooth morphing */}
-                  <div className={`transition-all duration-500 ease-out ${settings.darkMode ? 'rotate-0 scale-100' : 'rotate-180 scale-0'}`}>
-                    <Sun size={20} className="absolute inset-0" />
-                  </div>
-                  <div className={`transition-all duration-500 ease-out ${settings.darkMode ? 'rotate-180 scale-0' : 'rotate-0 scale-100'}`}>
-                    <Moon size={20} />
-                  </div>
-                </div>
-                
-                {/* Dynamic glow based on theme */}
-                <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl ${
-                  settings.darkMode ? 'bg-yellow-400/20' : 'bg-blue-500/20'
-                }`}></div>
-              </button>
 
               {/* Settings Button */}
               <button

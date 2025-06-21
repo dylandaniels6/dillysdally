@@ -74,7 +74,7 @@ const Settings: React.FC = () => {
       
       // Reset to defaults
       setSettings({
-        darkMode: false,
+        darkMode: true,
         autoSave: true,
         notifications: true,
         gyms: ['Crux Pflugerville', 'Crux Central', 'Mesa Rim', 'ABP - Westgate', 'ABP - Springdale'],
@@ -379,27 +379,32 @@ const Settings: React.FC = () => {
       <DataImport />
 
       {/* Appearance */}
-      <div className={`p-6 rounded-2xl ${
-        settings.darkMode 
-          ? 'bg-gray-800 border border-gray-700' 
-          : 'bg-white border border-gray-200 shadow-sm'
-      }`}>
-        <h3 className={`text-lg font-semibold mb-6 ${
-          settings.darkMode ? 'text-white' : 'text-gray-900'
-        }`}>
-          Appearance
-        </h3>
-        
-        <div className="space-y-4">
-          <ToggleSwitch
-            label="Dark Mode"
-            description="Switch between light and dark themes"
-            checked={settings.darkMode}
-            onChange={(checked) => updateSetting('darkMode', checked)}
-            icon={settings.darkMode ? <Moon size={20} /> : <Sun size={20} />}
-          />
+<div className="p-6 rounded-2xl bg-gray-800 border border-gray-700">
+  <h3 className="text-lg font-semibold mb-6 text-white">
+    Appearance
+  </h3>
+  
+  <div className="space-y-4">
+    <div className="flex items-center justify-between p-4 rounded-lg bg-gray-700">
+      <div className="flex items-center space-x-3">
+        <div className="p-2 rounded-lg bg-gray-600">
+          <Moon size={20} />
+        </div>
+        <div>
+          <div className="font-medium text-white">
+            Dark Mode
+          </div>
+          <div className="text-sm text-gray-400">
+            Your site is now exclusively in dark mode
+          </div>
         </div>
       </div>
+      <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-600">
+        <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
+      </div>
+    </div>
+  </div>
+</div>
 
       {/* Preferences */}
       <div className={`p-6 rounded-2xl ${

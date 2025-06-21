@@ -344,7 +344,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [netWorthEntries, setNetWorthEntries] = useState<NetWorthEntry[]>([]);
   const [dataImports, setDataImports] = useState<DataImport[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
-    darkMode: false,
+    darkMode: true,
     autoSave: true,
     notifications: true,
     gyms: ['Crux Pflugerville', 'Crux Central', 'Mesa Rim', 'ABP - Westgate', 'ABP - Springdale'],
