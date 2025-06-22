@@ -107,11 +107,7 @@ const HabitDisplay: React.FC<HabitDisplayProps> = ({
       {habitsToShow.map((habit, index) => (
         <div 
           key={habit.id || index}
-          className={`text-[9px] font-medium line-through truncate transition-colors duration-200 ${
-            settings.darkMode 
-              ? 'text-white/70' 
-              : 'text-gray-700'
-          }`}
+          className={`text-[9px] font-medium line-through truncate transition-colors duration-200 text-white`}
           title={`✓ ${habit.name} - Completed`}
         >
           <span className="inline-flex items-center gap-0.5">

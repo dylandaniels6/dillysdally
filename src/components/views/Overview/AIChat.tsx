@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Clock, Sparkles } from 'lucide-react';
+import { Send, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sendChatMessage } from './utils/aiService';
 import { useAppContext } from '../../../context/AppContext';
@@ -27,33 +27,64 @@ const AIChat: React.FC<AIChatProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [showInitialPrompt, setShowInitialPrompt] = useState(true);
+  const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { journalEntries, expenses, climbingSessions, habits } = useAppContext();
 
-  // Add daily recap as first message when loaded
+  // Load chat history and check if user has sent messages before
   useEffect(() => {
-    if (dailyRecap && !isLoading && messages.length === 0) {
-      setMessages([{
+    const savedMessages = localStorage.getItem('chatMessages');
+    
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages);
+        setMessages(parsedMessages);
+        // Check if user has sent any messages
+        const userHasSent = parsedMessages.some((msg: Message) => msg.role === 'user');
+        setHasUserSentMessage(userHasSent);
+      } catch (error) {
+        console.error('Error loading chat history:', error);
+      }
+    } else if (dailyRecap && !isLoading) {
+      // Set initial daily recap message
+      const initialMessage = {
         id: '1',
         content: dailyRecap,
-        role: 'assistant',
+        role: 'assistant' as const,
         timestamp: new Date()
-      }]);
+      };
+      setMessages([initialMessage]);
+      localStorage.setItem('chatMessages', JSON.stringify([initialMessage]));
     }
   }, [dailyRecap, isLoading]);
+
+  // Save messages to localStorage
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('chatMessages', JSON.stringify(messages));
+    }
+  }, [messages]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Handle Enter key
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e as any);
+    }
+  };
+
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isTyping) return;
 
+    // Create user message
     const userMessage: Message = {
       id: Date.now().toString(),
       content: input,
@@ -64,10 +95,11 @@ const AIChat: React.FC<AIChatProps> = ({
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
-    setShowInitialPrompt(false);
+    setHasUserSentMessage(true); // Mark that user has sent a message
 
-    if (!isExpanded) {
-      setIsExpanded(true);
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
     }
 
     try {
@@ -87,9 +119,11 @@ const AIChat: React.FC<AIChatProps> = ({
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
+      console.error('Chat API Error:', error);
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
+        content: `Error: Failed to get response. Please check your API settings.`,
         role: 'assistant',
         timestamp: new Date()
       };
@@ -99,144 +133,108 @@ const AIChat: React.FC<AIChatProps> = ({
     }
   };
 
-  const handleInputFocus = () => {
-    onFocusChange(true);
-    if (!isExpanded && messages.length > 0) {
-      setIsExpanded(true);
+  // Auto-resize textarea
+  const adjustTextareaHeight = () => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      const scrollHeight = inputRef.current.scrollHeight;
+      inputRef.current.style.height = Math.min(scrollHeight, 200) + 'px';
     }
   };
 
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 100 }}
-      animate={{ 
-        opacity: 1, 
-        y: isExpanded ? 0 : 100,
-        height: isExpanded ? 'auto' : 'auto'
-      }}
-      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className={`w-full ${isExpanded ? 'max-h-[80vh]' : ''}`}
-    >
-      {/* Chat Container */}
-      <div className={`${
-        isExpanded 
-          ? 'bg-gray-900/30 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl' 
-          : ''
-      }`}>
-        {/* Messages Area */}
-        {isExpanded && (
-          <div className="max-h-[60vh] overflow-y-auto p-6 space-y-4">
-            <AnimatePresence>
-              {messages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[80%] p-4 rounded-2xl ${
-                    message.role === 'user'
-                      ? 'bg-blue-600/20 backdrop-blur-sm border border-blue-500/30 text-white'
-                      : 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
-                  }`}>
-                    {message.role === 'assistant' && isLoading && message === messages[0] ? (
-                      <TypewriterText text={message.content} />
-                    ) : (
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+    <div className="flex flex-col h-full">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+        <AnimatePresence>
+          {messages.map((message) => (
+            <motion.div
+              key={message.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`max-w-[85%] px-4 py-3 rounded-2xl ${
+                message.role === 'user'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white/10 border border-white/20 text-white backdrop-blur-sm'
+              }`}>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {message.content}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
-            {isTyping && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex justify-start"
-              >
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-4 rounded-2xl">
-                  <div className="flex space-x-2">
-                    <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce delay-100" />
-                    <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce delay-200" />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-
-        {/* Input Area */}
-        <form onSubmit={handleSubmit} className={`${isExpanded ? 'p-6 pt-0' : ''}`}>
-          <div className="relative">
-            {/* Spotlight Search Style Input */}
-            <div className={`relative flex items-center ${
-              isExpanded 
-                ? 'bg-white/5 backdrop-blur-sm border border-white/10' 
-                : 'bg-gray-800/40 backdrop-blur-2xl border border-white/20 shadow-2xl'
-            } rounded-2xl transition-all duration-300`}>
-              <Sparkles className="absolute left-4 text-white/40" size={20} />
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onFocus={handleInputFocus}
-                onBlur={() => onFocusChange(false)}
-                placeholder={
-                  showInitialPrompt && !isExpanded 
-                    ? "What's on the agenda today?" 
-                    : "Ask anything..."
-                }
-                className={`w-full bg-transparent text-white placeholder-white/40 outline-none ${
-                  isExpanded ? 'px-12 py-3' : 'px-12 py-5 text-lg'
-                }`}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || isTyping}
-                className="absolute right-2 p-2 text-white/40 hover:text-white/60 transition-colors disabled:opacity-50"
-              >
-                <Send size={20} />
-              </button>
+        {/* Typing Indicator */}
+        {isTyping && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-start"
+          >
+            <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3">
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce delay-100" />
+                <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce delay-200" />
+              </div>
             </div>
+          </motion.div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
 
-            {/* History Button */}
-            {!isExpanded && (
+      {/* Input Area - Dynamic Width */}
+      <div className="px-4 pb-6">
+        <motion.div
+          initial={false}
+          animate={{
+            paddingLeft: hasUserSentMessage ? '0' : '0',
+            paddingRight: hasUserSentMessage ? '0' : '15%',
+          }}
+          transition={{ duration: 0.5, ease: 'easeInOut' }}
+          className="relative"
+        >
+          <form onSubmit={handleSubmit}>
+            <div className="flex items-end gap-3">
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask anything..."
+                  rows={1}
+                  className="w-full bg-white/10 border border-white/30 rounded-xl px-4 py-3 pr-12 text-white placeholder-white/60 resize-none outline-none focus:border-white/50 focus:bg-white/15 transition-all text-sm"
+                  style={{ minHeight: '48px', maxHeight: '200px' }}
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isTyping}
+                  className="absolute right-2 bottom-2 p-2 text-white/40 hover:text-white/70 transition-colors disabled:opacity-30"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={onHistoryClick}
-                className="absolute -right-12 top-1/2 transform -translate-y-1/2 p-2 text-white/40 hover:text-white/60 transition-colors"
+                className="p-3 text-white/40 hover:text-white/60 transition-colors"
               >
                 <Clock size={20} />
               </button>
-            )}
-          </div>
-        </form>
+            </div>
+          </form>
+        </motion.div>
       </div>
-    </motion.div>
+    </div>
   );
-};
-
-// Typewriter effect component
-const TypewriterText: React.FC<{ text: string }> = ({ text }) => {
-  const [displayedText, setDisplayedText] = useState('');
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (currentIndex < text.length) {
-      const timeout = setTimeout(() => {
-        setDisplayedText(prev => prev + text[currentIndex]);
-        setCurrentIndex(prev => prev + 1);
-      }, 20);
-      return () => clearTimeout(timeout);
-    }
-  }, [currentIndex, text]);
-
-  return <p className="whitespace-pre-wrap">{displayedText}</p>;
 };
 
 export default AIChat;

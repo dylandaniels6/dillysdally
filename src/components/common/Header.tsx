@@ -7,10 +7,10 @@ import AuthModal from '../auth/AuthModal';
 
 interface HeaderProps {
   toggleSidebar: () => void;
-  isTransparent?: boolean; // Add this line
+  isTransparent?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false }) => { // Add isTransparent prop
+const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false }) => {
   const { 
     settings, 
     setSettings, 
@@ -128,17 +128,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
 
   return (
     <>
-      <header className={`fixed top-0 left-0 right-0 z-10 transition-all duration-500 ease-out ${
-        isTransparent 
-          ? '!border-0' // Explicitly remove border when transparent
-          : isScrolled 
-            ? settings.darkMode 
-              ? 'bg-gray-950/80 backdrop-blur-2xl border-gray-800/50 shadow-2xl border-b' 
-              : 'bg-white/80 backdrop-blur-2xl border-gray-200/50 shadow-xl border-b'
-            : settings.darkMode 
-              ? 'bg-gray-950/60 backdrop-blur-xl border-gray-800/30 border-b' 
-              : 'bg-white/60 backdrop-blur-xl border-gray-200/30 border-b'
-      }`}> {/* Remove border when transparent */}
+              <header className="fixed top-0 left-0 right-0 z-50 bg-transparent border-0 transition-all duration-500 ease-out">
         <div className="h-16 px-8">
           <div className="flex justify-between items-center h-full max-w-full">
             
@@ -162,9 +152,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
                 </div>
                 
                 {/* Logo Text with subtle spring animation */}
-                <h1 className={`text-xl font-bold tracking-tight transition-all duration-300 ease-out ${
-                  settings.darkMode ? 'text-white' : 'text-gray-900'
-                } group-hover:tracking-wide`}>
+                <h1 className="text-xl font-bold tracking-tight transition-all duration-300 ease-out text-white group-hover:tracking-wide">
                   Dilly's Dally
                 </h1>
               </button>
@@ -176,11 +164,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
               {/* Calendar Button */}
               <button
                 onClick={() => setIsCalendarOpen(true)}
-                className={`group relative p-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-110 hover:-translate-y-0.5 ${
-                  settings.darkMode 
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-800/50 backdrop-blur-xl' 
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 backdrop-blur-xl'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent`}
+                className="group relative p-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-110 hover:-translate-y-0.5 text-white/60 hover:text-white hover:bg-white/10 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent"
                 title="Open calendar"
               >
                 <Calendar size={20} className="transition-transform duration-300 group-hover:rotate-12" />
@@ -192,11 +176,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
               {settings.cloudSync && (
                 <button
                   onClick={forceSync}
-                  className={`group relative flex items-center gap-2 px-4 py-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-105 hover:-translate-y-0.5 ${getSyncButtonColor()} ${
-                    settings.darkMode 
-                      ? 'hover:bg-gray-800/50 backdrop-blur-xl' 
-                      : 'hover:bg-gray-100/50 backdrop-blur-xl'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent`}
+                  className={`group relative flex items-center gap-2 px-4 py-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-105 hover:-translate-y-0.5 ${getSyncButtonColor()} hover:bg-white/10 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent`}
                   title={getSyncTooltip()}
                 >
                   <div className="relative">
@@ -234,11 +214,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
               {/* Settings Button */}
               <button
                 onClick={() => setCurrentView('settings')}
-                className={`group relative p-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-110 hover:-translate-y-0.5 ${
-                  settings.darkMode 
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-800/50 backdrop-blur-xl' 
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 backdrop-blur-xl'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent`}
+                className="group relative p-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-110 hover:-translate-y-0.5 text-white/60 hover:text-white hover:bg-white/10 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent"
                 title="Settings"
               >
                 <Settings size={20} className="transition-transform duration-300 group-hover:rotate-90" />
@@ -253,11 +229,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
                     <div className="relative">
                       <button
                         onClick={() => setShowUserMenu(!showUserMenu)}
-                        className={`group flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-105 hover:-translate-y-0.5 ${
-                          settings.darkMode 
-                            ? 'text-gray-300 hover:text-white hover:bg-gray-800/50 backdrop-blur-xl' 
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 backdrop-blur-xl'
-                        } focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent`}
+                        className="group flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-105 hover:-translate-y-0.5 text-white/80 hover:text-white hover:bg-white/10 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent"
                         aria-label="User menu"
                       >
                         {/* Avatar with gradient border */}
@@ -276,7 +248,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
                         {/* User email with subtle animation */}
                         <div className="hidden sm:block text-left">
                           <p className="text-sm font-medium leading-none">{user?.email?.split('@')[0]}</p>
-                          <p className={`text-xs mt-1 ${settings.darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                          <p className="text-xs mt-1 text-white/60">
                             Online
                           </p>
                         </div>
@@ -360,17 +332,14 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
         </div>
       </header>
 
-      {/* Spacer to prevent content overlap */}
-      <div className="h-16"></div>
-
       {/* Calendar Modal - Portaled to body */}
       {isCalendarOpen && createPortal(
-  <CalendarModal 
-    isOpen={isCalendarOpen} 
-    onClose={() => setIsCalendarOpen(false)} 
-  />,
-  document.body
-)}
+        <CalendarModal 
+          isOpen={isCalendarOpen} 
+          onClose={() => setIsCalendarOpen(false)} 
+        />,
+        document.body
+      )}
 
       {/* Auth Modal - Portaled to body */}
       {settings.authenticationEnabled && showAuthModal && createPortal(

@@ -1,178 +1,145 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Moon, 
-  Smartphone, 
-  CheckCircle2, 
-  Mountain, 
-  DollarSign,
-  ChevronDown,
-  ChevronUp,
-  Circle
-} from 'lucide-react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, ChevronDown, ChevronUp, Mountain, DollarSign, CheckCircle2, Circle } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
+import { Card } from '../../common/Card';
 
 const YesterdayRecap: React.FC = () => {
-  const { journalEntries, expenses, climbingSessions, habits } = useAppContext();
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
-
-  // Get yesterday's data
-  const yesterday = useMemo(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 1);
-    return date.toISOString().split('T')[0];
-  }, []);
-
-  // Get yesterday's journal entry
-  const yesterdayEntry = useMemo(() => 
-    journalEntries.find(entry => entry.date === yesterday),
-    [journalEntries, yesterday]
+  const { journalEntries, habits, expenses, climbingSessions } = useAppContext();
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Get yesterday's date
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  
+  // Filter data for yesterday
+  const yesterdayJournal = journalEntries.find(entry => 
+    entry.date === yesterdayStr
   );
-
-  // Get yesterday's habits
-  const yesterdayHabits = useMemo(() => 
-    habits.filter(h => h.date === yesterday),
-    [habits, yesterday]
+  
+  const yesterdayHabits = habits.filter(habit => 
+    habit.date === yesterdayStr
   );
-
-  const completedHabits = yesterdayHabits.filter(h => h.progress >= h.target).length;
-
-  // Get yesterday's climbing session
-  const yesterdayClimbing = useMemo(() => 
-    climbingSessions.find(session => session.date === yesterday),
-    [climbingSessions, yesterday]
+  
+  const yesterdayExpenses = expenses.filter(expense => 
+    expense.date === yesterdayStr
   );
-
-  const climbingDuration = yesterdayClimbing 
-    ? `${Math.floor(yesterdayClimbing.duration / 60)}h ${yesterdayClimbing.duration % 60}m`
-    : null;
-
-  const routesCompleted = yesterdayClimbing
-    ? yesterdayClimbing.routes.filter(r => r.completed).length
-    : 0;
-
-  // Get yesterday's spending
-  const yesterdaySpending = useMemo(() => 
-    expenses
-      .filter(expense => expense.date === yesterday)
-      .reduce((total, expense) => total + expense.amount, 0),
-    [expenses, yesterday]
+  
+  const yesterdayClimbing = climbingSessions.find(session => 
+    session.date === yesterdayStr
   );
-
-  // Format time helper
-  const formatTime = (time: string | undefined) => {
-    if (!time) return '--:--';
-    const [hours, minutes] = time.split(':');
-    const h = parseInt(hours);
-    const period = h >= 12 ? 'PM' : 'AM';
-    const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
-    return `${displayHour}:${minutes} ${period}`;
-  };
-
-  // Calculate sleep duration
-  const calculateSleepDuration = (sleepTime?: string, wakeTime?: string) => {
-    if (!sleepTime || !wakeTime) return null;
-    
-    const [sleepHours, sleepMinutes] = sleepTime.split(':').map(Number);
-    const [wakeHours, wakeMinutes] = wakeTime.split(':').map(Number);
-    
-    let sleepDate = new Date();
-    sleepDate.setHours(sleepHours, sleepMinutes, 0, 0);
-    
-    let wakeDate = new Date();
-    wakeDate.setHours(wakeHours, wakeMinutes, 0, 0);
-    
-    // If wake time is before sleep time, assume next day
-    if (wakeDate < sleepDate) {
-      wakeDate.setDate(wakeDate.getDate() + 1);
-    }
-    
-    const diff = wakeDate.getTime() - sleepDate.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}h ${minutes}m`;
-  };
-
-  const sleepDuration = calculateSleepDuration(
-    yesterdayEntry?.sleepTime,
-    yesterdayEntry?.wakeTime
-  );
-
-  const toggleSection = (section: string) => {
-    setExpandedSection(expandedSection === section ? null : section);
-  };
+  
+  // Calculate metrics
+  const yesterdaySpending = yesterdayExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const dayRating = yesterdayJournal?.dayRating || 0;
+  const completedHabits = yesterdayHabits.filter(habit => habit.progress >= habit.target).length;
+  const totalHabits = yesterdayHabits.length;
+  
+  // Climbing metrics
+  const climbingDuration = yesterdayClimbing ? 
+    `${Math.floor(yesterdayClimbing.duration / 60)}h ${yesterdayClimbing.duration % 60}m` : 
+    '0m';
+  const routesCompleted = yesterdayClimbing ? 
+    yesterdayClimbing.routes.filter(route => route.completed).length : 
+    0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.2 }}
-      className="bg-gray-900/20 backdrop-blur-xl border border-white/10 rounded-2xl p-6 space-y-4"
-    >
-      <h3 className="text-lg font-semibold text-white mb-4">Yesterday in Review</h3>
-      
-      {/* Sleep & Wake */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2 text-white/70">
-            <Moon size={16} />
-            <span>Sleep</span>
+    <Card className="w-full" hover={false}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-purple-500/20 rounded-lg">
+            <Calendar size={16} className="text-purple-400" />
           </div>
-          <span className="text-white font-medium">
-            {formatTime(yesterdayEntry?.sleepTime)} - {formatTime(yesterdayEntry?.wakeTime)}
-            {sleepDuration && (
-              <span className="text-white/50 ml-2">({sleepDuration})</span>
-            )}
-          </span>
+          <div>
+            <h3 className="text-lg font-semibold text-white">Yesterday</h3>
+            <p className="text-sm text-gray-400">
+              {yesterday.toLocaleDateString('en-US', { 
+                weekday: 'short',
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </p>
+          </div>
         </div>
+        
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+        >
+          {isExpanded ? (
+            <ChevronUp size={18} className="text-white/60" />
+          ) : (
+            <ChevronDown size={18} className="text-white/60" />
+          )}
+        </button>
+      </div>
 
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2 text-white/70">
-            <Smartphone size={16} />
-            <span>Phone Off</span>
+      {/* Day Rating */}
+      <div className="flex items-center justify-between text-sm mb-4">
+        <div className="flex items-center gap-2 text-white/70">
+          <span>Overall Day</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <div
+                key={star}
+                className={`w-4 h-4 ${
+                  star <= dayRating 
+                    ? 'text-yellow-400' 
+                    : 'text-white/20'
+                }`}
+              >
+                ★
+              </div>
+            ))}
           </div>
-          <span className="text-white font-medium">
-            {formatTime(yesterdayEntry?.phoneOffTime) || '--:--'}
+          <span className="text-white font-medium ml-2">
+            {dayRating > 0 ? `${dayRating}/5` : 'Not rated'}
           </span>
         </div>
       </div>
 
-      <div className="border-t border-white/10" />
+      <div className="border-t border-white/10 mb-4" />
 
-      {/* Habits */}
-      <div>
+      {/* Habits Summary */}
+      <div className="mb-4">
         <button
-          onClick={() => toggleSection('habits')}
-          className="w-full flex items-center justify-between text-sm hover:bg-white/5 -mx-2 px-2 py-1 rounded-lg transition-colors"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex items-center justify-between text-sm mb-2"
         >
           <div className="flex items-center gap-2 text-white/70">
-            <CheckCircle2 size={16} />
             <span>Habits</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-white font-medium">
-              {completedHabits}/{yesterdayHabits.length} completed
-            </span>
-            {expandedSection === 'habits' ? (
-              <ChevronUp size={16} className="text-white/50" />
-            ) : (
-              <ChevronDown size={16} className="text-white/50" />
-            )}
-          </div>
+          <span className="text-white font-medium">
+            {completedHabits}/{totalHabits} completed
+          </span>
         </button>
+        
+        {/* Progress bar */}
+        <div className="w-full bg-white/10 rounded-full h-2">
+          <div 
+            className="bg-gradient-to-r from-purple-500 to-purple-400 h-2 rounded-full transition-all duration-300"
+            style={{ 
+              width: totalHabits > 0 ? `${(completedHabits / totalHabits) * 100}%` : '0%' 
+            }}
+          />
+        </div>
 
+        {/* Expanded habits list */}
         <AnimatePresence>
-          {expandedSection === 'habits' && (
+          {isExpanded && yesterdayHabits.length > 0 && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3 space-y-2"
             >
-              <div className="mt-2 space-y-1 pl-6">
-                {yesterdayHabits.map(habit => (
+              {/* Gray contrast section for habit details */}
+              <div className="bg-gray-700/30 border border-gray-600/30 rounded-xl p-3 space-y-2">
+                {yesterdayHabits.map((habit) => (
                   <div key={habit.id} className="flex items-center gap-2 text-sm">
                     {habit.progress >= habit.target ? (
                       <CheckCircle2 size={14} className="text-green-400" />
@@ -182,6 +149,9 @@ const YesterdayRecap: React.FC = () => {
                     <span className={habit.progress >= habit.target ? 'text-white/70' : 'text-white/40'}>
                       {habit.name}
                     </span>
+                    <span className="text-xs text-gray-400 ml-auto">
+                      {habit.progress}/{habit.target} {habit.unit}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -190,10 +160,10 @@ const YesterdayRecap: React.FC = () => {
         </AnimatePresence>
       </div>
 
-      <div className="border-t border-white/10" />
+      <div className="border-t border-white/10 mb-4" />
 
       {/* Climbing */}
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-sm mb-4">
         <div className="flex items-center gap-2 text-white/70">
           <Mountain size={16} />
           <span>Climbing</span>
@@ -209,7 +179,7 @@ const YesterdayRecap: React.FC = () => {
         </span>
       </div>
 
-      <div className="border-t border-white/10" />
+      <div className="border-t border-white/10 mb-4" />
 
       {/* Spending */}
       <div className="flex items-center justify-between text-sm">
@@ -221,7 +191,34 @@ const YesterdayRecap: React.FC = () => {
           ${yesterdaySpending.toFixed(2)}
         </span>
       </div>
-    </motion.div>
+
+      {/* Expanded expense details */}
+      <AnimatePresence>
+        {isExpanded && yesterdayExpenses.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3"
+          >
+            {/* Gray contrast section for expense details */}
+            <div className="bg-gray-700/30 border border-gray-600/30 rounded-xl p-3 space-y-2">
+              {yesterdayExpenses.slice(0, 5).map((expense) => (
+                <div key={expense.id} className="flex items-center justify-between text-sm">
+                  <span className="text-white/70 truncate">{expense.description}</span>
+                  <span className="text-white/60 ml-2">${expense.amount.toFixed(2)}</span>
+                </div>
+              ))}
+              {yesterdayExpenses.length > 5 && (
+                <div className="text-xs text-gray-400 text-center pt-1">
+                  +{yesterdayExpenses.length - 5} more
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Card>
   );
 };
 

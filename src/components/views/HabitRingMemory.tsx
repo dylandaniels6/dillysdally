@@ -280,7 +280,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
          {streak > 0 && (
            <>
              <Flame size={24} className="text-orange-500 mb-1" />
-             <span className="text-lg font-bold">{streak}</span>
+             <span className="text-lg font-bold text-white">{streak}</span>
            </>
          )}
        </div>

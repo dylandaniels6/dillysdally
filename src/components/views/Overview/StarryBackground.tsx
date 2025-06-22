@@ -25,7 +25,7 @@ const StarryBackground: React.FC<StarryBackgroundProps> = ({ blur = false }) => 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Create stars
+    // Enhanced Star class with different behaviors
     class Star {
       x: number;
       y: number;
@@ -39,26 +39,73 @@ const StarryBackground: React.FC<StarryBackgroundProps> = ({ blur = false }) => 
       driftSpeed: number;
       driftPhase: number;
       driftRadius: number;
+      
+      // New twinkling properties
+      isTwinkling: boolean;
+      twinkleIntensity: number;
+      flashSpeed: number;
+      flashPhase: number;
+      
+      // Color properties for variety
+      color: 'white' | 'purple' | 'blue';
+      colorValue: string;
 
       constructor() {
         this.x = Math.random() * canvas.width;
         this.y = Math.random() * canvas.height;
         this.originalX = this.x;
         this.originalY = this.y;
-        this.size = Math.random() * 0.8 + 0.2; // Much smaller: 0.2-1px
-        this.baseBrightness = Math.random() * 0.4 + 0.1; // More subtle: 0.1-0.5
+        this.size = Math.random() * 0.8 + 0.2; // 0.2-1px
+        this.baseBrightness = Math.random() * 0.4 + 0.1; // 0.1-0.5
         this.brightness = this.baseBrightness;
-        this.twinkleSpeed = Math.random() * 0.015 + 0.003; // Slower, more subtle twinkle
+        this.twinkleSpeed = Math.random() * 0.015 + 0.003; // Slow, subtle twinkle
         this.twinklePhase = Math.random() * Math.PI * 2;
         this.driftSpeed = Math.random() * 0.008 + 0.002; // Very slow drift
         this.driftPhase = Math.random() * Math.PI * 2;
         this.driftRadius = Math.random() * 1.5 + 0.5; // Small drift radius
+        
+        // Enhanced twinkling - only some stars do this
+        this.isTwinkling = Math.random() > 0.85; // 15% of stars twinkle dramatically
+        this.twinkleIntensity = this.isTwinkling ? Math.random() * 0.8 + 0.5 : 0.3; // Stronger twinkle
+        this.flashSpeed = Math.random() * 0.02 + 0.008; // Faster flash for twinkling stars
+        this.flashPhase = Math.random() * Math.PI * 2;
+        
+        // Color variety - most white, some colored
+        const colorRandom = Math.random();
+        if (colorRandom > 0.92) {
+          this.color = 'purple';
+          this.colorValue = 'rgba(168, 85, 247, ';
+        } else if (colorRandom > 0.88) {
+          this.color = 'blue';
+          this.colorValue = 'rgba(59, 130, 246, ';
+        } else {
+          this.color = 'white';
+          this.colorValue = 'rgba(255, 255, 255, ';
+        }
       }
 
       update() {
-        // Subtle twinkling
+        // Regular subtle twinkling for all stars
         this.twinklePhase += this.twinkleSpeed;
-        this.brightness = this.baseBrightness + Math.sin(this.twinklePhase) * this.baseBrightness * 0.4;
+        let baseFlicker = Math.sin(this.twinklePhase) * this.baseBrightness * 0.4;
+        
+        // Enhanced dramatic twinkling for special stars
+        if (this.isTwinkling) {
+          this.flashPhase += this.flashSpeed;
+          let dramaticFlash = Math.sin(this.flashPhase) * this.twinkleIntensity;
+          
+          // Sometimes add a sharp flash
+          if (Math.random() > 0.996) { // Rare sharp flash
+            dramaticFlash += Math.random() * 0.8;
+          }
+          
+          this.brightness = this.baseBrightness + baseFlicker + dramaticFlash;
+        } else {
+          this.brightness = this.baseBrightness + baseFlicker;
+        }
+        
+        // Clamp brightness
+        this.brightness = Math.max(0, Math.min(1, this.brightness));
         
         // Subtle drift movement
         this.driftPhase += this.driftSpeed;
@@ -67,29 +114,71 @@ const StarryBackground: React.FC<StarryBackgroundProps> = ({ blur = false }) => 
       }
 
       draw(ctx: CanvasRenderingContext2D) {
+        // Main star
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${this.brightness})`;
+        ctx.fillStyle = `${this.colorValue}${this.brightness})`;
         ctx.fill();
 
-        // Very subtle glow for only the brightest stars
-        if (this.brightness > 0.35 && this.size > 0.6) {
+        // Enhanced glow for twinkling and bright stars
+        const shouldGlow = this.isTwinkling || (this.brightness > 0.35 && this.size > 0.6);
+        
+        if (shouldGlow) {
+          // Inner glow
           ctx.beginPath();
           ctx.arc(this.x, this.y, this.size * 1.5, 0, Math.PI * 2);
-          const gradient = ctx.createRadialGradient(
+          const innerGradient = ctx.createRadialGradient(
             this.x, this.y, 0,
             this.x, this.y, this.size * 1.5
           );
-          gradient.addColorStop(0, `rgba(255, 255, 255, ${this.brightness * 0.15})`);
-          gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-          ctx.fillStyle = gradient;
+          innerGradient.addColorStop(0, `${this.colorValue}${this.brightness * 0.2})`);
+          innerGradient.addColorStop(1, `${this.colorValue}0)`);
+          ctx.fillStyle = innerGradient;
           ctx.fill();
+          
+          // Outer glow for very bright twinkling stars
+          if (this.isTwinkling && this.brightness > 0.7) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+            const outerGradient = ctx.createRadialGradient(
+              this.x, this.y, 0,
+              this.x, this.y, this.size * 3
+            );
+            outerGradient.addColorStop(0, `${this.colorValue}${this.brightness * 0.1})`);
+            outerGradient.addColorStop(0.3, `${this.colorValue}${this.brightness * 0.05})`);
+            outerGradient.addColorStop(1, `${this.colorValue}0)`);
+            ctx.fillStyle = outerGradient;
+            ctx.fill();
+          }
+        }
+
+        // Cross-shaped sparkle for the brightest twinkling stars
+        if (this.isTwinkling && this.brightness > 0.8) {
+          const sparkleLength = this.size * 4;
+          const sparkleOpacity = (this.brightness - 0.8) * 2; // Only when very bright
+          
+          ctx.strokeStyle = `${this.colorValue}${sparkleOpacity * 0.6})`;
+          ctx.lineWidth = 0.5;
+          ctx.lineCap = 'round';
+          
+          // Horizontal line
+          ctx.beginPath();
+          ctx.moveTo(this.x - sparkleLength, this.y);
+          ctx.lineTo(this.x + sparkleLength, this.y);
+          ctx.stroke();
+          
+          // Vertical line
+          ctx.beginPath();
+          ctx.moveTo(this.x, this.y - sparkleLength);
+          ctx.lineTo(this.x, this.y + sparkleLength);
+          ctx.stroke();
         }
       }
     }
 
-    // Much more stars - denser starfield
-    const starCount = Math.floor((canvas.width * canvas.height) / 800);
+    // Create stars - more density for better effect
+    const starCount = Math.floor((canvas.width * canvas.height) / 700); // Slightly denser
+    starsRef.current = []; // Clear existing stars
     for (let i = 0; i < starCount; i++) {
       starsRef.current.push(new Star());
     }

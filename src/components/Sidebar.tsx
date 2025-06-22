@@ -1,154 +1,123 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
   BookOpen, 
+  Mountain, 
   CreditCard, 
   TrendingUp, 
-  Settings as SettingsIcon,
-  User,
-  LogOut,
-  Mountain
+  Settings
 } from 'lucide-react';
-import { useAppContext, ViewMode } from '../context/AppContext';
-import AuthModal from './auth/AuthModal';
+import { useAppContext } from '../context/AppContext';
 
-interface NavItemProps {
-  icon: React.ReactNode;
-  label: string;
-  view: ViewMode;
-  isActive: boolean;
-  onClick: () => void;
-}
+// Ultra-minimal navigation items with labels
+const navigationItems = [
+  { id: 'overview', icon: Home, view: 'overview', label: 'Overview' },
+  { id: 'journal', icon: BookOpen, view: 'journal', label: 'Journal' },
+  { id: 'climbing', icon: Mountain, view: 'climbing', label: 'Climbing' },
+  { id: 'expenses', icon: CreditCard, view: 'expenses', label: 'Expenses' },
+  { id: 'networth', icon: TrendingUp, view: 'networth', label: 'Net Worth' },
+  { id: 'settings', icon: Settings, view: 'settings', label: 'Settings' },
+];
 
 interface SidebarProps {
-  isTransparent?: boolean; // Add this prop
+  isTransparent?: boolean;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => {
-  const { settings } = useAppContext();
-  
+const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => {
+  const { currentView, setCurrentView } = useAppContext();
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-        isActive
-          ? settings.darkMode
-            ? 'bg-blue-600 text-white shadow-lg'
-            : 'bg-blue-600 text-white shadow-lg'
-          : settings.darkMode
-            ? 'text-gray-300 hover:bg-gray-800 hover:text-white'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-      }`}
+    <motion.aside 
+      className="fixed left-0 top-16 bottom-0 z-30 flex flex-col items-start py-8"
+      initial={{ width: 64 }}
+      animate={{ width: isExpanded ? 200 : 64 }}
+      transition={{ duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }}
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
     >
-      <span className="flex-shrink-0">{icon}</span>
-      <span className="font-medium">{label}</span>
-    </button>
-  );
-};
-
-const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => { // Accept the prop
-  const { currentView, setCurrentView, settings, user, signOut, isAuthenticated } = useAppContext();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-
-  const navItems = [
-    { icon: <Home size={20} />, label: 'Overview', view: 'overview' as ViewMode },
-    { icon: <BookOpen size={20} />, label: 'Daily Journal', view: 'journal' as ViewMode },
-    { icon: <Mountain size={20} />, label: 'Climbing Log', view: 'climbing' as ViewMode },
-    { icon: <CreditCard size={20} />, label: 'Monthly Expenses', view: 'expenses' as ViewMode },
-    { icon: <TrendingUp size={20} />, label: 'Net Worth Tracker', view: 'networth' as ViewMode },
-    { icon: <SettingsIcon size={20} />, label: 'Settings', view: 'settings' as ViewMode },
-  ];
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  return (
-    <>
-      <div className={`fixed left-0 top-0 h-full w-64 transition-colors duration-300 ${
-        isTransparent 
-          ? `${settings.darkMode ? 'bg-gray-950/10' : 'bg-white/10'} backdrop-blur-xl` // No border
-          : settings.darkMode 
-            ? 'bg-gray-900 border-gray-800 border-r' 
-            : 'bg-white border-gray-200 border-r'
-      }`}>
-        <div className="p-6">
-          <nav className="space-y-2 mt-16"> {/* Added mt-16 to account for header space */}
-            {navItems.map((item) => (
-              <NavItem
-                key={item.view}
-                icon={item.icon}
-                label={item.label}
-                view={item.view}
-                isActive={currentView === item.view}
-                onClick={() => setCurrentView(item.view)}
+      {/* Dynamic background that appears on hover */}
+      <AnimatePresence>
+        {isExpanded && !isTransparent && (
+          <motion.div 
+            className="absolute inset-0 bg-black/30 backdrop-blur-xl border-r border-white/10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          />
+        )}
+      </AnimatePresence>
+      
+      <nav className="relative flex flex-col items-start space-y-6 px-4 w-full">
+        {navigationItems.map((item, index) => {
+          const isActive = currentView === item.view;
+          const Icon = item.icon;
+          
+          return (
+            <motion.button
+              key={item.id}
+              onClick={() => setCurrentView(item.view as any)}
+              className="relative group flex items-center space-x-3 p-3 rounded-xl transition-all duration-200 focus:outline-none w-full text-left"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {/* Icon */}
+              <Icon 
+                size={20} 
+                className={`transition-colors duration-200 flex-shrink-0 ${
+                  isActive 
+                    ? 'text-white' 
+                    : 'text-white/40 group-hover:text-white/80'
+                }`} 
               />
-            ))}
-          </nav>
-
-          {/* User Section */}
-          <div className="absolute bottom-6 left-6 right-6">
-            {isAuthenticated ? (
-              <div className={`p-4 rounded-xl ${
-                settings.darkMode ? 'bg-gray-800' : 'bg-gray-100'
-              }`}>
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className={`p-2 rounded-lg ${
-                    settings.darkMode ? 'bg-gray-700' : 'bg-gray-200'
-                  }`}>
-                    <User size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${
-                      settings.darkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {user?.email}
-                    </p>
-                    <p className={`text-xs ${
-                      settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Signed in
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleSignOut}
-                  className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg transition-colors ${
-                    settings.darkMode 
-                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                  }`}
-                >
-                  <LogOut size={16} />
-                  <span className="text-sm">Sign Out</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className={`w-full flex items-center justify-center space-x-2 py-3 rounded-xl transition-colors ${
-                  settings.darkMode 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
-              >
-                <User size={16} />
-                <span className="font-medium">Sign In</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
-    </>
+              
+              {/* Label with smooth fade-in */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.span
+                    className={`text-sm font-medium whitespace-nowrap transition-colors duration-200 ${
+                      isActive 
+                        ? 'text-white' 
+                        : 'text-white/60 group-hover:text-white/90'
+                    }`}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2, delay: 0.1 }}
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              
+              {/* Active indicator */}
+              {isActive && (
+                <motion.div
+                  className="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-6 bg-white/60 rounded-r-full"
+                  layoutId="activeIndicator"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                />
+              )}
+              
+              {/* Subtle hover glow */}
+              <motion.div
+                className="absolute inset-0 bg-white/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                initial={false}
+                animate={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+              />
+            </motion.button>
+          );
+        })}
+      </nav>
+    </motion.aside>
   );
 };
 

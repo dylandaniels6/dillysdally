@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, GripVertical, X, Check } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { Plus, Check, X, GripVertical, CheckSquare } from 'lucide-react';
+import { Card } from '../../common/Card';
 import { supabase } from '../../../lib/supabase';
 
 interface Task {
@@ -156,28 +157,40 @@ const TodoList: React.FC = () => {
     return a.priority - b.priority;
   });
 
+  // Filter tasks
+  const incompleteTasks = sortedTasks.filter(task => !task.completed);
+  const completedTasks = sortedTasks.filter(task => task.completed);
+
   if (isLoading) {
     return (
-      <div className="bg-gray-900/20 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+      <Card>
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-white/10 rounded w-1/3"></div>
           <div className="h-10 bg-white/10 rounded"></div>
           <div className="h-10 bg-white/10 rounded"></div>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.3 }}
-      className="bg-gray-900/20 backdrop-blur-xl border border-white/10 rounded-2xl p-6"
-    >
-      <h3 className="text-lg font-semibold text-white mb-4">Today's Tasks</h3>
+    <Card className="w-full" hover={false}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-purple-500/20 rounded-lg">
+            <CheckSquare size={16} className="text-purple-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white">Today's Tasks</h3>
+            <p className="text-sm text-gray-400">
+              {incompleteTasks.length} remaining
+            </p>
+          </div>
+        </div>
+      </div>
 
-      {/* Add Task Form */}
+      {/* Add new task form */}
       <form onSubmit={addTask} className="mb-4">
         <div className="flex gap-2">
           <input
@@ -185,66 +198,89 @@ const TodoList: React.FC = () => {
             value={newTaskText}
             onChange={(e) => setNewTaskText(e.target.value)}
             placeholder="Add a task..."
-            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:border-white/20 transition-colors"
+            className="flex-1 bg-gray-700/30 border border-gray-600/30 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:bg-gray-700/50 transition-all"
           />
           <button
             type="submit"
-            className="p-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-white transition-colors"
+            disabled={!newTaskText.trim()}
+            className="px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-xl text-purple-400 hover:text-purple-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Plus size={20} />
+            <Plus size={18} />
           </button>
         </div>
       </form>
 
-      {/* Tasks List */}
+      {/* Tasks list */}
       <div className="space-y-2 max-h-[400px] overflow-y-auto">
-        <Reorder.Group values={sortedTasks} onReorder={reorderTasks}>
-          <AnimatePresence>
-            {sortedTasks.map((task) => (
-              <Reorder.Item
-                key={task.id}
-                value={task}
-                dragListener={!task.completed}
-                dragControls={undefined}
-                className={`group ${task.completed ? 'pointer-events-none' : ''}`}
-              >
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -100 }}
-                  className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
-                    task.completed 
-                      ? 'bg-white/5 opacity-50' 
-                      : 'bg-white/10 hover:bg-white/15'
-                  }`}
+        {incompleteTasks.length > 0 && (
+          <Reorder.Group 
+            values={incompleteTasks} 
+            onReorder={reorderTasks}
+          >
+            <AnimatePresence>
+              {incompleteTasks.map((task) => (
+                <Reorder.Item
+                  key={task.id}
+                  value={task}
+                  dragListener={true}
+                  dragControls={undefined}
                 >
-                  {!task.completed && (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -100 }}
+                    className="group flex items-center gap-3 p-3 bg-gray-700/30 border border-gray-600/30 rounded-xl hover:bg-gray-700/50 transition-all"
+                  >
                     <div className="cursor-grab active:cursor-grabbing text-white/30 hover:text-white/50">
                       <GripVertical size={16} />
                     </div>
-                  )}
 
+                    <button
+                      onClick={() => toggleTask(task.id)}
+                      className="p-1 rounded transition-colors text-white/30 hover:text-white/60"
+                    >
+                      <div className="w-4 h-4 border border-current rounded" />
+                    </button>
+
+                    <span className="flex-1 text-sm text-white">
+                      {task.text}
+                    </span>
+
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-white/30 hover:text-red-400 transition-all"
+                    >
+                      <X size={16} />
+                    </button>
+                  </motion.div>
+                </Reorder.Item>
+              ))}
+            </AnimatePresence>
+          </Reorder.Group>
+        )}
+
+        {/* Completed tasks */}
+        {completedTasks.length > 0 && (
+          <div className="mt-4">
+            {/* Gray contrast section for completed tasks */}
+            <div className="bg-gray-700/30 border border-gray-600/30 rounded-xl p-3 space-y-2">
+              <h4 className="text-sm font-medium text-gray-400 mb-2">Completed Today ({completedTasks.length})</h4>
+              {completedTasks.map((task) => (
+                <motion.div
+                  key={task.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="group flex items-center gap-3 p-2 bg-white/5 opacity-50 rounded-lg"
+                >
                   <button
                     onClick={() => toggleTask(task.id)}
-                    className={`p-1 rounded transition-colors ${
-                      task.completed 
-                        ? 'text-green-400' 
-                        : 'text-white/30 hover:text-white/60'
-                    }`}
+                    className="p-1 rounded transition-colors text-green-400"
                   >
-                    {task.completed ? (
-                      <Check size={16} />
-                    ) : (
-                      <div className="w-4 h-4 border border-current rounded" />
-                    )}
+                    <Check size={16} />
                   </button>
 
-                  <span className={`flex-1 text-sm ${
-                    task.completed 
-                      ? 'text-white/40 line-through' 
-                      : 'text-white'
-                  }`}>
+                  <span className="flex-1 text-sm text-white/40 line-through">
                     {task.text}
                   </span>
 
@@ -255,12 +291,28 @@ const TodoList: React.FC = () => {
                     <X size={16} />
                   </button>
                 </motion.div>
-              </Reorder.Item>
-            ))}
-          </AnimatePresence>
-        </Reorder.Group>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {incompleteTasks.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-8"
+          >
+            <div className="text-gray-400 text-sm">
+              {completedTasks.length > 0 
+                ? "All tasks completed! 🎉" 
+                : "No tasks yet. Add one above to get started."
+              }
+            </div>
+          </motion.div>
+        )}
       </div>
-    </motion.div>
+    </Card>
   );
 };
 

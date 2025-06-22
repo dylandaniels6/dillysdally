@@ -9,7 +9,7 @@ import MonthlyExpenses from './views/MonthlyExpenses';
 import NetWorthTracker from './views/NetWorthTracker/NetWorthTracker';
 import Settings from './views/Settings';
 import ClimbingLog from './views/ClimbingLog';
-import StarryBackground from './views/Overview/StarryBackground'; // Import the StarryBackground
+import StarryBackground from './views/Overview/StarryBackground';
 
 const Layout: React.FC = () => {
   const { currentView, settings } = useAppContext();
@@ -19,7 +19,7 @@ const Layout: React.FC = () => {
   const isOverviewPage = currentView === 'overview';
   
   const renderCurrentView = () => {
-    console.log('Current view:', currentView); // Debug log
+    console.log('Current view:', currentView);
     
     switch (currentView) {
       case 'overview':
@@ -46,25 +46,17 @@ const Layout: React.FC = () => {
       
       {/* Main App Container */}
       <div className="relative z-10 min-h-screen">
-        {/* Header - with conditional glassy styling for Overview */}
-        <div className={isOverviewPage ? 'fixed top-0 left-0 right-0 z-50' : ''}>
-          <div className={isOverviewPage ? 
-  `${settings.darkMode ? 'bg-gray-950/10' : 'bg-white/10'} backdrop-blur-lg` :          ''
-          }>
-            <Header 
-              toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-              isTransparent={isOverviewPage}
-            />
-          </div>
-        </div>
+        {/* Header - fully transparent on Overview */}
+        <Header 
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+          isTransparent={isOverviewPage}
+        />
         
-        {/* Sidebar - with conditional glassy styling for Overview */}
-        <div className={isOverviewPage ? 'fixed left-0 top-0 bottom-0 z-40' : ''}>
-          <Sidebar isTransparent={isOverviewPage} />
-        </div>
+        {/* Sidebar - positioned below header */}
+        <Sidebar isTransparent={true} />
         
-        {/* Main content - Account for fixed header */}
-        <main className="ml-64 min-h-screen pt-16">
+        {/* Main content - adjusted for maximum sidebar width */}
+        <main className="ml-52 min-h-screen pt-16">
           <div className={currentView === 'journal' ? 'px-8 pt-0 pb-6' : 'px-8 py-6'}>
             {renderCurrentView()}
           </div>
