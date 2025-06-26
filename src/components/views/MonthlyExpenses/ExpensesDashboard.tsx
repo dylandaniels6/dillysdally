@@ -18,9 +18,139 @@ import CategoryInsights from './components/CategoryInsights';
 import QuickEntry from './components/QuickEntry';
 import AddIncome from './components/AddIncome';
 import FilterBar from './components/FilterBar';
-import ExpenseSankey from './components/ExpenseSankey';
 import ExpenseChart from './components/ExpenseChart';
 import { formatCurrency, getDateRange } from './utils/expenseHelpers';
+
+// Create inline Card components since we need to fix the import path
+interface CardProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'elevated' | 'interactive' | 'metric' | 'hero';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  hover?: boolean;
+  glow?: boolean;
+  gradient?: boolean;
+  loading?: boolean;
+  className?: string;
+}
+
+const Card: React.FC<CardProps> = ({
+  children,
+  variant = 'metric',
+  size = 'md',
+  padding = 'lg',
+  hover = false,
+  glow = true,
+  gradient = true,
+  loading = false,
+  className = '',
+  ...props
+}) => {
+  const cardVariants = {
+    default: 'bg-gray-800/40 backdrop-blur-md border border-gray-700/50 rounded-2xl shadow-md transition-all duration-300 ease-out',
+    elevated: 'bg-gray-800/60 backdrop-blur-md border border-gray-600/50 rounded-2xl shadow-lg transition-all duration-300 ease-out',
+    interactive: 'bg-gray-800/40 backdrop-blur-md border border-gray-700/50 hover:border-purple-500/50 rounded-2xl shadow-md hover:shadow-lg hover:shadow-purple-500/20 cursor-pointer group transition-all duration-300 ease-out',
+    metric: 'bg-gray-800/60 backdrop-blur-md border border-gray-600/50 rounded-2xl shadow-lg transition-all duration-300 ease-out',
+    hero: 'bg-gray-800/60 backdrop-blur-md border border-gray-600/50 rounded-3xl shadow-xl transition-all duration-300 ease-out',
+  };
+
+  const sizeVariants = {
+    sm: 'min-h-[120px]',
+    md: 'min-h-[160px]',
+    lg: 'min-h-[200px]',
+    xl: 'min-h-[280px]',
+  };
+
+  const paddingVariants = {
+    none: 'p-0',
+    sm: 'p-4',
+    md: 'p-6',
+    lg: 'p-8',
+    xl: 'p-10',
+  };
+
+  const getCardStyle = (): React.CSSProperties => {
+    let style: React.CSSProperties = {};
+
+    if (gradient) {
+      style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)';
+    }
+
+    if (glow) {
+      style.boxShadow = '0 10px 25px rgba(139, 92, 246, 0.15), 0 4px 10px rgba(139, 92, 246, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)';
+    }
+
+    return style;
+  };
+
+  const cardClasses = [
+    cardVariants[variant],
+    sizeVariants[size],
+    paddingVariants[padding],
+    loading && 'animate-pulse',
+    className
+  ].filter(Boolean).join(' ');
+
+  return (
+    <motion.div
+      className={cardClasses}
+      style={getCardStyle()}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }}
+      {...props}
+    >
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-2xl">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" />
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '100ms' }} />
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }} />
+          </div>
+        </div>
+      )}
+      
+      <div className="relative z-10">
+        {children}
+      </div>
+      
+      <div className="absolute inset-[1px] rounded-inherit pointer-events-none bg-gradient-to-b from-white/5 to-transparent" />
+    </motion.div>
+  );
+};
+
+const CardGrid: React.FC<{
+  children: React.ReactNode;
+  cols?: 1 | 2 | 3 | 4;
+  gap?: 'sm' | 'md' | 'lg';
+  className?: string;
+}> = ({ children, cols = 2, gap = 'md', className }) => {
+  const gridCols = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-1 md:grid-cols-2',
+    3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+    4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+  };
+
+  const gridGap = {
+    sm: 'gap-4',
+    md: 'gap-6',
+    lg: 'gap-8',
+  };
+
+  const gridClasses = [
+    'grid',
+    gridCols[cols],
+    gridGap[gap],
+    className
+  ].filter(Boolean).join(' ');
+
+  return (
+    <div className={gridClasses}>
+      {children}
+    </div>
+  );
+};
 
 interface DynamicCategoryDisplayProps {
   category: string;
@@ -115,7 +245,6 @@ const DynamicCategoryDisplay: React.FC<DynamicCategoryDisplayProps> = ({ categor
 };
 
 type TimeRange = 'week' | 'month' | '3months' | '6months' | 'year' | 'all';
-type ViewMode = 'timeline' | 'flow' | 'analytics';
 
 interface ExpenseFilter {
   categories: string[];
@@ -128,7 +257,6 @@ interface ExpenseFilter {
 const ExpensesDashboard: React.FC = () => {
   const { expenses, settings, isAuthenticated } = useAppContext();
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('month');
-  const [viewMode, setViewMode] = useState<ViewMode>('timeline');
   const [showQuickEntry, setShowQuickEntry] = useState(false);
   const [showAddIncome, setShowAddIncome] = useState(false);
   const [filters, setFilters] = useState<ExpenseFilter>({
@@ -259,38 +387,31 @@ const ExpensesDashboard: React.FC = () => {
             Add Expense
           </motion.button>
           
+          {/* UPDATED: Download button with design system theme */}
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className={`p-2 rounded-xl transition-all ${
-              settings.darkMode 
-                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
-                : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
-            }`}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            className="relative p-3 rounded-xl font-medium transition-all duration-300 ease-out bg-gray-800/40 backdrop-blur-md border border-gray-700/50 hover:border-purple-500/50 shadow-lg hover:shadow-purple-500/20 text-gray-300 hover:text-white"
+            style={{
+              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)',
+              boxShadow: '0 10px 25px rgba(139, 92, 246, 0.15), 0 4px 10px rgba(139, 92, 246, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
           >
             <Download size={18} />
           </motion.button>
         </div>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`p-6 rounded-2xl ${
-            settings.darkMode 
-              ? 'bg-gray-800/50 border border-gray-700/50' 
-              : 'bg-white border border-gray-200'
-          } backdrop-blur-sm`}
-        >
+      {/* Metrics Cards - Updated with Card Component */}
+      <CardGrid cols={4} gap="md">
+        <Card variant="metric" size="md" padding="lg">
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <span className="text-sm text-gray-400">
               Total Spent
             </span>
             <DollarSign size={18} className="text-purple-500" />
           </div>
-          <div className={`text-2xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="text-2xl font-bold text-white">
             {formatCurrency(metrics.currentTotal)}
           </div>
           <div className={`flex items-center gap-1 mt-2 text-sm ${
@@ -298,72 +419,45 @@ const ExpensesDashboard: React.FC = () => {
           }`}>
             {metrics.change >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
             <span>{Math.abs(metrics.changePercent).toFixed(1)}%</span>
-            <span className={settings.darkMode ? 'text-gray-500' : 'text-gray-400'}>
+            <span className="text-gray-500">
               vs last period
             </span>
           </div>
-        </motion.div>
+        </Card>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className={`p-6 rounded-2xl ${
-            settings.darkMode 
-              ? 'bg-gray-800/50 border border-gray-700/50' 
-              : 'bg-white border border-gray-200'
-          } backdrop-blur-sm`}
-        >
+        <Card variant="metric" size="md" padding="lg">
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <span className="text-sm text-gray-400">
               Transactions
             </span>
             <Calendar size={18} className="text-blue-500" />
           </div>
-          <div className={`text-2xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="text-2xl font-bold text-white">
             {metrics.transactionCount}
           </div>
-          <div className={`text-sm mt-2 ${settings.darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+          <div className="text-sm mt-2 text-gray-500">
             Avg: {formatCurrency(metrics.avgTransaction)}
           </div>
-        </motion.div>
+        </Card>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className={`p-6 rounded-2xl ${
-            settings.darkMode 
-              ? 'bg-gray-800/50 border border-gray-700/50' 
-              : 'bg-white border border-gray-200'
-          } backdrop-blur-sm`}
-        >
+        <Card variant="metric" size="md" padding="lg">
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <span className="text-sm text-gray-400">
               Daily Average
             </span>
             <TrendingUp size={18} className="text-green-500" />
           </div>
-          <div className={`text-2xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="text-2xl font-bold text-white">
             {formatCurrency(metrics.dailyAverage)}
           </div>
-          <div className={`text-sm mt-2 ${settings.darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+          <div className="text-sm mt-2 text-gray-500">
             Per day
           </div>
-        </motion.div>
+        </Card>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className={`p-6 rounded-2xl ${
-            settings.darkMode 
-              ? 'bg-gray-800/50 border border-gray-700/50' 
-              : 'bg-white border border-gray-200'
-          } backdrop-blur-sm overflow-hidden`}
-        >
+        <Card variant="metric" size="md" padding="lg" className="overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <span className="text-sm text-gray-400">
               Top Category
             </span>
             <AlertCircle size={18} className="text-amber-500" />
@@ -375,16 +469,16 @@ const ExpensesDashboard: React.FC = () => {
               darkMode={settings.darkMode}
             />
           ) : (
-            <div className={`text-2xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div className="text-2xl font-bold text-white">
               None
             </div>
           )}
           
-          <div className={`text-sm mt-2 text-center ${settings.darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+          <div className="text-sm mt-2 text-center text-gray-500">
             {metrics.topCategories[0] ? formatCurrency(metrics.topCategories[0][1]) : '$0'}
           </div>
-        </motion.div>
-      </div>
+        </Card>
+      </CardGrid>
       
       {/* NEW: Expense Chart */}
       <ExpenseChart 
@@ -395,11 +489,13 @@ const ExpensesDashboard: React.FC = () => {
         }}
       />
       
-      {/* Time Range Selector */}
+      {/* UPDATED: Time Range Selector with design system theme */}
       <div className="flex justify-center">
-        <div className={`inline-flex rounded-xl p-1 ${
-          settings.darkMode ? 'bg-gray-800/50' : 'bg-gray-100'
-        } backdrop-blur-sm`}>
+        <div className="inline-flex rounded-2xl p-1.5 bg-gray-800/40 backdrop-blur-md border border-gray-700/50"
+             style={{
+               background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)',
+               boxShadow: '0 10px 25px rgba(139, 92, 246, 0.15), 0 4px 10px rgba(139, 92, 246, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+             }}>
           {timeRangeOptions.map((option) => (
             <button
               key={option.key}
@@ -407,39 +503,16 @@ const ExpensesDashboard: React.FC = () => {
                 setSelectedTimeRange(option.key);
                 setFilters(prev => ({ ...prev, dateRange: getDateRange(option.key) }));
               }}
-              className={`px-6 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
+              className={`px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
                 selectedTimeRange === option.key
-                  ? `${settings.darkMode ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' : 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'} shadow-lg scale-105`
-                  : `${settings.darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`
+                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/25'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
               }`}
             >
               {option.label}
             </button>
           ))}
         </div>
-      </div>
-
-      {/* View Mode Tabs */}
-      <div className={`flex gap-1 p-1 rounded-xl ${
-        settings.darkMode ? 'bg-gray-800/30' : 'bg-gray-100/50'
-      }`}>
-        {(['timeline', 'flow', 'analytics'] as ViewMode[]).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setViewMode(mode)}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-300 ${
-              viewMode === mode
-                ? settings.darkMode 
-                  ? 'bg-gray-700 text-white shadow-sm' 
-                  : 'bg-white text-gray-900 shadow-sm'
-                : settings.darkMode
-                  ? 'text-gray-400 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            {mode.charAt(0).toUpperCase() + mode.slice(1)}
-          </button>
-        ))}
       </div>
 
       {/* Filter Bar */}
@@ -453,68 +526,14 @@ const ExpensesDashboard: React.FC = () => {
 
       {/* Main Content Area - Single Column Layout */}
       <div className="space-y-6">
-        {/* Timeline/Flow/Analytics */}
-        <AnimatePresence mode="wait">
-          {viewMode === 'timeline' && (
-            <motion.div
-              key="timeline"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className={`rounded-2xl ${
-                settings.darkMode 
-                  ? 'bg-gray-800/50 border border-gray-700/50' 
-                  : 'bg-white border border-gray-200'
-              } backdrop-blur-sm overflow-hidden`}
-            >
-              <ExpenseTimeline 
-                expenses={filteredExpenses}
-                timeRange={selectedTimeRange}
-                settings={settings}
-              />
-            </motion.div>
-          )}
-          
-          {viewMode === 'flow' && (
-            <motion.div
-              key="flow"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className={`p-6 rounded-2xl ${
-                settings.darkMode 
-                  ? 'bg-gray-800/50 border border-gray-700/50' 
-                  : 'bg-white border border-gray-200'
-              } backdrop-blur-sm`}
-            >
-              <ExpenseSankey 
-                expenses={filteredExpenses}
-                income={5000} // You can make this dynamic based on user settings
-                settings={settings}
-                timeRange={selectedTimeRange}
-              />
-            </motion.div>
-          )}
-          
-          {viewMode === 'analytics' && (
-            <motion.div
-              key="analytics"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className={`p-6 rounded-2xl ${
-                settings.darkMode 
-                  ? 'bg-gray-800/50 border border-gray-700/50' 
-                  : 'bg-white border border-gray-200'
-              } backdrop-blur-sm`}
-            >
-              {/* Analytics component will go here */}
-              <div className="h-96 flex items-center justify-center text-gray-500">
-                Advanced analytics coming soon...
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Timeline */}
+        <Card variant="elevated" padding="none" className="overflow-hidden">
+          <ExpenseTimeline 
+            expenses={filteredExpenses}
+            timeRange={selectedTimeRange}
+            settings={settings}
+          />
+        </Card>
         
         {/* AI Insights */}
         <CategoryInsights 
@@ -524,11 +543,10 @@ const ExpensesDashboard: React.FC = () => {
         />
         
         {/* Recent Transactions */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mt-6"
+        <Card 
+          variant="elevated" 
+          padding="none" 
+          className="mt-6 overflow-hidden"
         >
           <TransactionTable 
             expenses={filteredExpenses} 
@@ -536,7 +554,7 @@ const ExpensesDashboard: React.FC = () => {
             onEdit={(expense) => console.log('Edit expense:', expense)}
             onDelete={(id) => console.log('Delete expense:', id)} 
           /> 
-        </motion.div>
+        </Card>
 
       </div>
 

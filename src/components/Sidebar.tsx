@@ -59,28 +59,47 @@ const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => {
             <motion.button
               key={item.id}
               onClick={() => setCurrentView(item.view as any)}
-              className="relative group flex items-center space-x-3 p-3 rounded-xl transition-all duration-200 focus:outline-none w-full text-left"
+              className="relative group flex items-center space-x-3 pl-1 pr-3 py-3 rounded-xl transition-all duration-200 focus:outline-none w-full text-left"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              {/* Icon */}
-              <Icon 
-                size={20} 
-                className={`transition-colors duration-200 flex-shrink-0 ${
-                  isActive 
-                    ? 'text-white' 
-                    : 'text-white/40 group-hover:text-white/80'
-                }`} 
-              />
+              {/* Active indicator - aligned with top of icon, extended bottom */}
+              {isActive && (
+                <motion.div
+                  className="absolute -left-4 top-[calc(50%-12px)] w-1 h-7 bg-white/80 rounded-r-full shadow-lg shadow-white/20"
+                  layoutId="activeIndicator"
+                  initial={{ opacity: 0, scaleY: 0.5 }}
+                  animate={{ opacity: 1, scaleY: 1 }}
+                  transition={{ 
+                    type: "spring", 
+                    stiffness: 400, 
+                    damping: 25,
+                    opacity: { duration: 0.2 },
+                    scaleY: { duration: 0.3 }
+                  }}
+                />
+              )}
+              
+              {/* Icon - manually positioned to align with others */}
+              <div className="relative" style={{ marginLeft: '-2px' }}>
+                <Icon 
+                  size={20} 
+                  className={`transition-colors duration-200 flex-shrink-0 ${
+                    isActive 
+                      ? 'text-white' 
+                      : 'text-white/40 group-hover:text-white/80'
+                  }`} 
+                />
+              </div>
               
               {/* Label with smooth fade-in */}
               <AnimatePresence>
                 {isExpanded && (
                   <motion.span
-                    className={`text-sm font-medium whitespace-nowrap transition-colors duration-200 ${
+                    className={`text-sm font-medium whitespace-nowrap transition-colors duration-200 relative z-10 ${
                       isActive 
                         ? 'text-white' 
                         : 'text-white/60 group-hover:text-white/90'
@@ -94,17 +113,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => {
                   </motion.span>
                 )}
               </AnimatePresence>
-              
-              {/* Active indicator */}
-              {isActive && (
-                <motion.div
-                  className="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-6 bg-white/60 rounded-r-full"
-                  layoutId="activeIndicator"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                />
-              )}
               
               {/* Subtle hover glow */}
               <motion.div

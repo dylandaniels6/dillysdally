@@ -128,7 +128,16 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
 
   return (
     <>
-              <header className="fixed top-0 left-0 right-0 z-50 bg-transparent border-0 transition-all duration-500 ease-out">
+      <header 
+        className="fixed top-0 left-0 right-0 bg-transparent border-0 transition-all duration-500 ease-out" 
+        style={{ 
+          zIndex: 9999, 
+          position: 'fixed', 
+          isolation: 'isolate',
+          willChange: 'auto',
+          transform: 'translateZ(0)'
+        }}
+      >
         <div className="h-16 px-8">
           <div className="flex justify-between items-center h-full max-w-full">
             
@@ -265,7 +274,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
                           settings.darkMode 
                             ? 'bg-gray-900/90 border-gray-700/50 shadow-black/50' 
                             : 'bg-white/90 border-gray-200/50 shadow-gray-500/25'
-                        } z-20 transform animate-in slide-in-from-top-2 duration-300`}>
+                        } style={{ zIndex: 10000 }} transform animate-in slide-in-from-top-2 duration-300`}>
                           
                           {/* Header */}
                           <div className="p-6 border-b border-gray-200/20">
@@ -353,7 +362,8 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
       {/* Click outside to close user menu */}
       {showUserMenu && (
         <div 
-          className="fixed inset-0 z-15" 
+          className="fixed inset-0" 
+          style={{ zIndex: 9995 }} 
           onClick={() => setShowUserMenu(false)}
         />
       )}

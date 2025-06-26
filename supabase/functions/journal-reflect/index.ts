@@ -45,7 +45,7 @@ Keep the response warm, supportive, and under 200 words.`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4.1-mini',
         messages: [
           {
             role: 'system',

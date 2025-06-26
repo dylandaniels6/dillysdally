@@ -118,11 +118,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   return (
     <>
       {/* Past Transactions Section - Collapsible with Modern Design */}
-      <div className={`relative overflow-hidden rounded-2xl transition-all duration-500 ${
-        settings.darkMode 
-          ? 'bg-gradient-to-br from-gray-800/90 to-gray-900/90 border border-gray-700/50' 
-          : 'bg-gradient-to-br from-white/90 to-gray-50/90 border border-gray-200/50'
-      } backdrop-blur-xl shadow-2xl`}>
+      <div className="relative">
         
         {/* Animated Background Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 animate-gradient" />

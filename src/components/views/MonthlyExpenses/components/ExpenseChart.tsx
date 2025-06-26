@@ -342,7 +342,7 @@ const ExpenseChart: React.FC<ExpenseChartProps> = ({ selectedTimeRange, onTimeRa
   }, []);
 
   return (
-    <div className={`relative rounded-lg overflow-hidden ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+    <div className={`relative rounded-lg overflow-hidden ${settings.darkMode ? 'bg-gray-800/60' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
       {/* Starry Background */}
       <StarryBackground darkMode={settings.darkMode} />
       

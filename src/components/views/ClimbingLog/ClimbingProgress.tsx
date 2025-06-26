@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../../context/AppContext';
 import { Calendar, TrendingUp, TrendingDown, Mountain, BarChart3, Target, Award, Zap, Clock } from 'lucide-react';
-import GradeSendsChart from '../views/GradeSendsChart';
-import MountainVisualization from '../views/ClimbingLog/MountainVisualization';
+import GradeSendsChart from './GradeSendsChart';  // Now in same directory
+import MountainVisualization from './MountainVisualization';  // Now in same directory
+import { Card } from '../../common/Card';  // Fixed path to Card
 import {
   ResponsiveContainer,
   LineChart,
@@ -331,11 +332,9 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
         <div className={`inline-flex rounded-lg p-1 ${settings.darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
           <button
             onClick={() => setActiveChart('overview')}
-            className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
+            className={`px-4 py-2 text-sm rounded-md font-medium transition-all duration-200 ${
               activeChart === 'overview'
-                ? settings.darkMode
-                  ? 'bg-gray-600 text-white shadow-sm'
-                  : 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
                 : settings.darkMode
                 ? 'text-gray-300 hover:text-white'
                 : 'text-gray-600 hover:text-gray-900'
@@ -345,11 +344,9 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
           </button>
           <button
             onClick={() => setActiveChart('performance')}
-            className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
+            className={`px-4 py-2 text-sm rounded-md font-medium transition-all duration-200 ${
               activeChart === 'performance'
-                ? settings.darkMode
-                  ? 'bg-gray-600 text-white shadow-sm'
-                  : 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
                 : settings.darkMode
                 ? 'text-gray-300 hover:text-white'
                 : 'text-gray-600 hover:text-gray-900'
@@ -359,11 +356,9 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
           </button>
           <button
             onClick={() => setActiveChart('analytics')}
-            className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
+            className={`px-4 py-2 text-sm rounded-md font-medium transition-all duration-200 ${
               activeChart === 'analytics'
-                ? settings.darkMode
-                  ? 'bg-gray-600 text-white shadow-sm'
-                  : 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
                 : settings.darkMode
                 ? 'text-gray-300 hover:text-white'
                 : 'text-gray-600 hover:text-gray-900'
@@ -440,7 +435,7 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
       {activeChart === 'performance' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Success Rate by Grade */}
-          <div className={`p-6 rounded-lg ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <Card className={`p-6 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
             <h3 className={`text-lg font-semibold mb-4 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
               Success Rate by Grade
             </h3>
@@ -463,10 +458,10 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </Card>
 
           {/* Grade Distribution Pie Chart */}
-          <div className={`p-6 rounded-lg ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <Card className={`p-6 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
             <h3 className={`text-lg font-semibold mb-4 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
               Grade Distribution
             </h3>
@@ -489,44 +484,44 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Analytics Tab */}
-{activeChart === 'analytics' && (
-  <div className="space-y-6">
-    {/* Mountain Visualization */}
-    <MountainVisualization 
-      climbingSessions={climbingSessions}
-      journalEntries={journalEntries}
-      settings={settings}
-      height={500}
-    />
+      {activeChart === 'analytics' && (
+        <div className="space-y-6">
+          {/* Mountain Visualization */}
+          <MountainVisualization 
+            climbingSessions={climbingSessions}
+            journalEntries={journalEntries}
+            settings={settings}
+            height={500}
+          />
 
           {/* Additional Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <MetricCard
-              icon={<Target size={20} />}
-              label="Average Success Rate"
-              value={`${(stats.totalCompleted / stats.totalClimbs * 100 || 0).toFixed(1)}%`}
-              color="text-green-500"
-              settings={settings}
-            />
-            <MetricCard
-              icon={<Zap size={20} />}
-              label="Climbs per Session"
-              value={(stats.totalClimbs / stats.totalSessions || 0).toFixed(1)}
-              color="text-yellow-500"
-              settings={settings}
-            />
-            <MetricCard
-              icon={<Clock size={20} />}
-              label="Avg Session Duration"
-              value={`${Math.round((climbingSessions.reduce((sum, s) => sum + (s.duration || 0), 0) / climbingSessions.length) || 0)} min`}
-              color="text-blue-500"
-              settings={settings}
-            />
+            <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className={`flex items-center justify-center mb-3 text-green-500`}>
+                <Target size={20} />
+              </div>
+              <p className={`text-sm text-center ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Average Success Rate</p>
+              <p className={`text-xl font-bold text-center mt-1 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{`${(stats.totalCompleted / stats.totalClimbs * 100 || 0).toFixed(1)}%`}</p>
+            </Card>
+            <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className={`flex items-center justify-center mb-3 text-yellow-500`}>
+                <Zap size={20} />
+              </div>
+              <p className={`text-sm text-center ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Climbs per Session</p>
+              <p className={`text-xl font-bold text-center mt-1 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{(stats.totalClimbs / stats.totalSessions || 0).toFixed(1)}</p>
+            </Card>
+            <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className={`flex items-center justify-center mb-3 text-blue-500`}>
+                <Clock size={20} />
+              </div>
+              <p className={`text-sm text-center ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Avg Session Duration</p>
+              <p className={`text-xl font-bold text-center mt-1 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{`${Math.round((climbingSessions.reduce((sum, s) => sum + (s.duration || 0), 0) / climbingSessions.length) || 0)} min`}</p>
+            </Card>
           </div>
         </div>
       )}
@@ -535,23 +530,13 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
 };
 
 const StatCard = ({ icon, label, value, settings }: { icon: JSX.Element; label: string; value: React.ReactNode; settings: any }) => (
-  <div className={`p-4 rounded-lg ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+  <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
     <div className="flex items-center space-x-2 mb-2">
       {icon}
       <span className={`text-sm font-medium ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</span>
     </div>
     <p className={`text-2xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{value}</p>
-  </div>
-);
-
-const MetricCard = ({ icon, label, value, color, settings }: { icon: JSX.Element; label: string; value: string | number; color: string; settings: any }) => (
-  <div className={`p-4 rounded-lg ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-    <div className={`flex items-center justify-center mb-3 ${color}`}>
-      {icon}
-    </div>
-    <p className={`text-sm text-center ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</p>
-    <p className={`text-xl font-bold text-center mt-1 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{value}</p>
-  </div>
+  </Card>
 );
 
 export default ClimbingProgress;

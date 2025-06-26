@@ -4,6 +4,101 @@ import { Moon, Sun, Save, Bell, Download, Trash, Shield, User, Cloud, CloudOff, 
 import DataImport from '../common/DataImport';
 import { supabase } from '../../lib/supabase';
 
+// Create inline Card components since we need to fix the import path
+interface CardProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'elevated' | 'interactive' | 'metric' | 'hero';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  hover?: boolean;
+  glow?: boolean;
+  gradient?: boolean;
+  loading?: boolean;
+  className?: string;
+}
+
+const Card: React.FC<CardProps> = ({
+  children,
+  variant = 'default',
+  size = 'md',
+  padding = 'lg',
+  hover = false,
+  glow = true,
+  gradient = true,
+  loading = false,
+  className = '',
+  ...props
+}) => {
+  const cardVariants = {
+    default: 'bg-gray-800/40 backdrop-blur-md border border-gray-700/50 rounded-2xl shadow-md transition-all duration-300 ease-out',
+    elevated: 'bg-gray-800/60 backdrop-blur-md border border-gray-600/50 rounded-2xl shadow-lg transition-all duration-300 ease-out',
+    interactive: 'bg-gray-800/40 backdrop-blur-md border border-gray-700/50 hover:border-purple-500/50 rounded-2xl shadow-md hover:shadow-lg hover:shadow-purple-500/20 cursor-pointer group transition-all duration-300 ease-out',
+    metric: 'bg-gray-800/60 backdrop-blur-md border border-gray-600/50 rounded-2xl shadow-lg transition-all duration-300 ease-out',
+    hero: 'bg-gray-800/60 backdrop-blur-md border border-gray-600/50 rounded-3xl shadow-xl transition-all duration-300 ease-out',
+  };
+
+  const sizeVariants = {
+    sm: 'min-h-[120px]',
+    md: 'min-h-[160px]',
+    lg: 'min-h-[200px]',
+    xl: 'min-h-[280px]',
+  };
+
+  const paddingVariants = {
+    none: 'p-0',
+    sm: 'p-4',
+    md: 'p-6',
+    lg: 'p-8',
+    xl: 'p-10',
+  };
+
+  const getCardStyle = (): React.CSSProperties => {
+    let style: React.CSSProperties = {};
+
+    if (gradient) {
+      style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)';
+    }
+
+    if (glow) {
+      style.boxShadow = '0 10px 25px rgba(139, 92, 246, 0.15), 0 4px 10px rgba(139, 92, 246, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)';
+    }
+
+    return style;
+  };
+
+  const cardClasses = [
+    cardVariants[variant],
+    sizeVariants[size],
+    paddingVariants[padding],
+    loading && 'animate-pulse',
+    className
+  ].filter(Boolean).join(' ');
+
+  return (
+    <div
+      className={cardClasses}
+      style={getCardStyle()}
+      {...props}
+    >
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-2xl">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" />
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '100ms' }} />
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }} />
+          </div>
+        </div>
+      )}
+      
+      <div className="relative z-10">
+        {children}
+      </div>
+      
+      <div className="absolute inset-[1px] rounded-inherit pointer-events-none bg-gradient-to-b from-white/5 to-transparent" />
+    </div>
+  );
+};
+
 const Settings: React.FC = () => {
   const { 
     settings, 
@@ -181,11 +276,7 @@ const Settings: React.FC = () => {
       </div>
 
       {/* Cloud Sync Status */}
-      <div className={`p-6 rounded-2xl ${
-        settings.darkMode 
-          ? 'bg-gray-800 border border-gray-700' 
-          : 'bg-white border border-gray-200 shadow-sm'
-      }`}>
+      <Card variant="elevated">
         <h3 className={`text-lg font-semibold mb-6 ${
           settings.darkMode ? 'text-white' : 'text-gray-900'
         }`}>
@@ -298,14 +389,10 @@ const Settings: React.FC = () => {
             This unique ID is used to sync your data across devices without requiring an account.
           </p>
         </div>
-      </div>
+      </Card>
 
       {/* Authentication Section */}
-      <div className={`p-6 rounded-2xl ${
-        settings.darkMode 
-          ? 'bg-gray-800 border border-gray-700' 
-          : 'bg-white border border-gray-200 shadow-sm'
-      }`}>
+      <Card variant="elevated">
         <h3 className={`text-lg font-semibold mb-6 ${
           settings.darkMode ? 'text-white' : 'text-gray-900'
         }`}>
@@ -373,45 +460,41 @@ const Settings: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Data Import Section */}
       <DataImport />
 
       {/* Appearance */}
-<div className="p-6 rounded-2xl bg-gray-800 border border-gray-700">
-  <h3 className="text-lg font-semibold mb-6 text-white">
-    Appearance
-  </h3>
-  
-  <div className="space-y-4">
-    <div className="flex items-center justify-between p-4 rounded-lg bg-gray-700">
-      <div className="flex items-center space-x-3">
-        <div className="p-2 rounded-lg bg-gray-600">
-          <Moon size={20} />
-        </div>
-        <div>
-          <div className="font-medium text-white">
-            Dark Mode
+      <Card variant="elevated">
+        <h3 className="text-lg font-semibold mb-6 text-white">
+          Appearance
+        </h3>
+        
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-gray-700">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gray-600">
+                <Moon size={20} />
+              </div>
+              <div>
+                <div className="font-medium text-white">
+                  Dark Mode
+                </div>
+                <div className="text-sm text-gray-400">
+                  Your site is now exclusively in dark mode
+                </div>
+              </div>
+            </div>
+            <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-600">
+              <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
+            </div>
           </div>
-          <div className="text-sm text-gray-400">
-            Your site is now exclusively in dark mode
-          </div>
         </div>
-      </div>
-      <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-600">
-        <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
-      </div>
-    </div>
-  </div>
-</div>
+      </Card>
 
       {/* Preferences */}
-      <div className={`p-6 rounded-2xl ${
-        settings.darkMode 
-          ? 'bg-gray-800 border border-gray-700' 
-          : 'bg-white border border-gray-200 shadow-sm'
-      }`}>
+      <Card variant="elevated">
         <h3 className={`text-lg font-semibold mb-6 ${
           settings.darkMode ? 'text-white' : 'text-gray-900'
         }`}>
@@ -435,14 +518,10 @@ const Settings: React.FC = () => {
             icon={<Bell size={20} />}
           />
         </div>
-      </div>
+      </Card>
 
       {/* Data Management */}
-      <div className={`p-6 rounded-2xl ${
-        settings.darkMode 
-          ? 'bg-gray-800 border border-gray-700' 
-          : 'bg-white border border-gray-200 shadow-sm'
-      }`}>
+      <Card variant="elevated">
         <h3 className={`text-lg font-semibold mb-6 ${
           settings.darkMode ? 'text-white' : 'text-gray-900'
         }`}>
@@ -500,14 +579,10 @@ const Settings: React.FC = () => {
             } />
           </button>
         </div>
-      </div>
+      </Card>
 
       {/* About */}
-      <div className={`p-6 rounded-2xl ${
-        settings.darkMode 
-          ? 'bg-gray-800 border border-gray-700' 
-          : 'bg-white border border-gray-200 shadow-sm'
-      }`}>
+      <Card variant="elevated">
         <h3 className={`text-lg font-semibold mb-4 ${
           settings.darkMode ? 'text-white' : 'text-gray-900'
         }`}>
@@ -527,7 +602,7 @@ const Settings: React.FC = () => {
             Anonymous cloud sync ensures your privacy while providing seamless data access
           </p>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

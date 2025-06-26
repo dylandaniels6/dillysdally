@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../../context/AppContext';  // Fixed path
 import { BarChart3 } from 'lucide-react';
+import { Card } from '../../common/Card';  // Added Card import
 import {
   ResponsiveContainer,
   BarChart,
@@ -93,7 +94,7 @@ const GradeSendsChart: React.FC<GradeSendsChartProps> = ({ selectedTimeRange, on
   };
 
   return (
-    <div className={`p-6 rounded-lg ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+    <Card className={`p-6 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
       <div className="flex justify-between items-center mb-4">
         <h3 className={`text-lg font-semibold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{chartTitle}</h3>
         <div className={`flex rounded-lg p-1 ${settings.darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
@@ -101,11 +102,9 @@ const GradeSendsChart: React.FC<GradeSendsChartProps> = ({ selectedTimeRange, on
             <button
               key={option.key}
               onClick={() => onTimeRangeChange(option.key as any)}
-              className={`px-3 py-2 text-sm rounded-md transition-all duration-200 ${
+              className={`px-3 py-2 text-sm rounded-md font-medium transition-all duration-200 ${
                 selectedTimeRange === option.key
-                  ? settings.darkMode
-                    ? 'bg-gray-600 text-white shadow-sm'
-                    : 'bg-white text-gray-900 shadow-sm'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
                   : settings.darkMode
                   ? 'text-gray-300 hover:text-white'
                   : 'text-gray-600 hover:text-gray-900'
@@ -184,7 +183,7 @@ const GradeSendsChart: React.FC<GradeSendsChartProps> = ({ selectedTimeRange, on
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 };
 

@@ -159,21 +159,13 @@ setTimeout(() => {
   }
 };
 
-  // Collapsed state
+  // Collapsed state - just add professional styling to existing structure
   if (!isExpanded) {
     return (
-      <div className={`lg:col-span-3 ${
-        settings.darkMode 
-          ? 'bg-gray-900 border border-gray-700' 
-          : 'bg-white border border-gray-200'
-      } rounded-3xl shadow-2xl`}>
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg shadow-purple-500/10">
         <button
           onClick={() => setIsExpanded(true)}
-          className={`w-full flex items-center justify-between p-6 rounded-3xl transition-all duration-300 ${
-            settings.darkMode 
-              ? 'hover:bg-gray-800 text-white' 
-              : 'hover:bg-gray-50 text-gray-900'
-          }`}
+          className="w-full flex items-center justify-between p-6 rounded-2xl transition-all duration-300 text-white"
         >
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-xl">
@@ -181,48 +173,34 @@ setTimeout(() => {
             </div>
             <div className="text-left">
               <h3 className="text-xl font-bold">Daily Entry</h3>
-              <p className={`text-sm ${
-                settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Journal • Sleep • Metrics</p>
+              <p className="text-sm text-white/60">Journal • Sleep • Metrics</p>
             </div>
           </div>
-          <ChevronDown size={24} className={settings.darkMode ? 'text-gray-400' : 'text-gray-600'} />
+          <ChevronDown size={24} className="text-white/60" />
         </button>
       </div>
     );
   }
 
-  // Expanded state - ONE BIG CONTAINER with all your original styling
+  // Expanded state - YOUR EXACT ORIGINAL CODE with just container styling changed
   return (
-    <div className={`lg:col-span-3 ${
-      settings.darkMode 
-        ? 'bg-gray-900 border border-gray-700' 
-        : 'bg-white border border-gray-200'
-    } rounded-3xl shadow-2xl`}>
+    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg shadow-purple-500/10">
       
       {/* Header with Collapse Button */}
-      <div className="p-6 border-b border-gray-200/20">
+      <div className="p-6 border-b border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-xl">
               <PenTool size={24} className="text-white" />
             </div>
             <div>
-              <h3 className={`text-xl font-bold ${
-                settings.darkMode ? 'text-white' : 'text-gray-900'
-              }`}>Daily Entry</h3>
-              <p className={`text-sm ${
-                settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Journal • Sleep • Metrics</p>
+              <h3 className="text-xl font-bold text-white">Daily Entry</h3>
+              <p className="text-sm text-white/60">Journal • Sleep • Metrics</p>
             </div>
           </div>
           <button
             onClick={() => setIsExpanded(false)}
-            className={`p-2 rounded-xl transition-colors ${
-              settings.darkMode 
-                ? 'hover:bg-gray-800 text-gray-400 hover:text-white' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            }`}
+            className="p-2 rounded-xl transition-colors text-white/60"
           >
             <ChevronUp size={24} />
           </button>
@@ -238,16 +216,10 @@ setTimeout(() => {
             
             {/* Journal Entry Header */}
             <div className="flex items-center justify-between">
-              <h4 className={`text-lg font-semibold ${
-                settings.darkMode ? 'text-white' : 'text-gray-900'
-              }`}>Journal Entry</h4>
+              <h4 className="text-lg font-semibold text-white">Journal Entry</h4>
               <button
                 onClick={() => setIsJournalExpanded(true)}
-                className={`p-2 rounded-xl transition-all ${
-                  settings.darkMode 
-                    ? 'bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'
-                }`}
+                className="p-2 rounded-xl transition-all bg-white/5 text-white/60"
               >
                 <Maximize2 size={18} />
               </button>
@@ -259,25 +231,15 @@ setTimeout(() => {
                 value={currentEntry.content}
                 onChange={(e) => updateEntry({ content: e.target.value })}
                 placeholder="How was your day? What thoughts are flowing through your mind?"
-                className={`w-full h-[500px] p-4 rounded-2xl border-2 resize-none ${
-                  settings.darkMode 
-                    ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500'
-                } focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base`}
+                className="w-full h-[500px] p-4 rounded-2xl border resize-none bg-white/5 border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base backdrop-blur-sm"
               />
-              <div className={`absolute bottom-3 right-3 text-xs ${
-                settings.darkMode ? 'text-gray-500' : 'text-gray-400'
-              }`}>
+              <div className="absolute bottom-3 right-3 text-xs text-white/40">
                 {currentEntry.content.length} characters
               </div>
             </div>
 
             {/* Journal AI Reflection Box */}
-<div className={`p-4 rounded-2xl border ${
-  settings.darkMode 
-    ? 'bg-purple-900/30 border-purple-700/50' 
-    : 'bg-purple-50 border-purple-200'
-} min-h-[100px]`}>
+<div className="p-4 rounded-2xl border bg-purple-500/10 border-purple-500/20 backdrop-blur-sm min-h-[100px]">
   <div className="flex items-center gap-2 mb-3">
     <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
       {isLoadingAI ? (
@@ -286,34 +248,26 @@ setTimeout(() => {
         <Brain size={16} className="text-white" />
       )}
     </div>
-    <h4 className={`font-bold ${
-      settings.darkMode ? 'text-purple-300' : 'text-purple-700'
-    }`}>
+    <h4 className="font-bold text-purple-300">
       AI Journal Reflection
     </h4>
   </div>
   {currentEntry.ai_reflection ? (
     <div className="relative">
-      <p className={`text-sm line-clamp-3 ${
-        settings.darkMode ? 'text-gray-200' : 'text-gray-700'
-      }`}>
+      <p className="text-sm line-clamp-3 text-white/80">
         {currentEntry.ai_reflection}
       </p>
       {currentEntry.ai_reflection.length > 200 && (
         <button
           onClick={() => setIsAIReflectionExpanded(true)}
-          className={`text-sm font-medium mt-2 ${
-            settings.darkMode ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'
-          } transition-colors`}
+          className="text-sm font-medium mt-2 text-purple-400 hover:text-purple-300 transition-colors"
         >
           Read more...
         </button>
       )}
     </div>
   ) : (
-    <p className={`text-sm italic ${
-      settings.darkMode ? 'text-gray-400' : 'text-gray-500'
-    }`}>
+    <p className="text-sm italic text-white/40">
       AI reflection will appear here after saving your entry...
     </p>
   )}
@@ -325,9 +279,7 @@ setTimeout(() => {
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
                   <ChefHat size={14} className="text-white" />
                 </div>
-                <label className={`text-base font-semibold ${
-                  settings.darkMode ? 'text-gray-200' : 'text-gray-800'
-                }`}>
+                <label className="text-base font-semibold text-white">
                   Today's Nutrition
                 </label>
               </div>
@@ -336,20 +288,12 @@ setTimeout(() => {
                 value={currentEntry.meals || ''}
                 onChange={(e) => updateEntry({ meals: e.target.value })}
                 placeholder="What nourished your body today?"
-                className={`w-full h-32 p-4 rounded-2xl border-2 resize-none ${
-                  settings.darkMode 
-                    ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500'
-                } focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm`}
+                className="w-full h-32 p-4 rounded-2xl border resize-none bg-white/5 border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm backdrop-blur-sm"
               />
             </div>
 
             {/* Meal AI Reflection Box */}
-            <div className={`p-4 rounded-2xl border ${
-              settings.darkMode 
-                ? 'bg-orange-900/30 border-orange-700/50' 
-                : 'bg-orange-50 border-orange-200'
-            } min-h-[100px]`}>
+            <div className="p-4 rounded-2xl border bg-orange-500/10 border-orange-500/20 backdrop-blur-sm min-h-[100px]">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 bg-gradient-to-br from-orange-600 to-red-600 rounded-xl flex items-center justify-center">
                   {isGeneratingMealAI ? (
@@ -358,28 +302,20 @@ setTimeout(() => {
                     <ChefHat size={16} className="text-white" />
                   )}
                 </div>
-                <h4 className={`font-bold ${
-                  settings.darkMode ? 'text-orange-300' : 'text-orange-700'
-                }`}>
+                <h4 className="font-bold text-orange-300">
                   AI Nutrition Analysis
                 </h4>
               </div>
               {isGeneratingMealAI ? (
-                <div className={`text-sm ${
-                  settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className="text-sm text-white/60">
                   Analyzing your nutrition choices...
                 </div>
               ) : currentEntry.meal_ai_reflection ? (
-                <p className={`text-sm ${
-                  settings.darkMode ? 'text-gray-200' : 'text-gray-700'
-                }`}>
+                <p className="text-sm text-white/80">
                   {currentEntry.meal_ai_reflection}
                 </p>
               ) : (
-                <p className={`text-sm italic ${
-                  settings.darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>
+                <p className="text-sm italic text-white/40">
                   AI nutrition analysis will appear here after saving...
                 </p>
               )}
@@ -390,11 +326,7 @@ setTimeout(() => {
           <div className="space-y-6">
             
             {/* Sleep Tracking - Apple Design Language */}
-            <div className={`relative p-8 rounded-3xl overflow-hidden ${
-              settings.darkMode 
-                ? 'bg-gray-900/80 border border-gray-700/50 backdrop-blur-xl' 
-                : 'bg-white/90 border border-gray-200/50 backdrop-blur-xl shadow-xl'
-            }`}>
+            <div className="relative p-8 rounded-3xl overflow-hidden bg-blue-500/10 border border-blue-500/20 backdrop-blur-xl">
               {/* Animated Background Gradient */}
               <div className="absolute inset-0 opacity-30">
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/20 via-purple-500/10 to-indigo-500/20 animate-pulse"></div>
@@ -404,14 +336,12 @@ setTimeout(() => {
               <div className="relative flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-3">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg transform hover:scale-110 transition-all duration-300 ease-out">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg transition-all duration-300 ease-out">
                       <Moon size={20} className="text-white animate-pulse" />
                     </div>
                     <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-30 animate-pulse"></div>
                   </div>
-                  <h3 className={`text-2xl font-bold tracking-tight ${
-                    settings.darkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
+                  <h3 className="text-2xl font-bold tracking-tight text-white">
                     Sleep Tracking
                   </h3>
                 </div>
@@ -421,20 +351,14 @@ setTimeout(() => {
               <div className="space-y-4 mb-6 -mx-6">
                 {/* Wake Up Time */}
                 <div className="group relative">
-                  <div className={`relative p-4 rounded-2xl transition-all duration-500 ease-out transform group-hover:scale-[1.02] group-hover:-translate-y-1 ${
-                    settings.darkMode 
-                      ? 'bg-gray-800/70 border border-gray-600/50 backdrop-blur-sm' 
-                      : 'bg-gray-50/80 border border-gray-200/70 backdrop-blur-sm'
-                  } group-hover:shadow-xl group-hover:shadow-orange-500/20`}>
+                  <div className="relative p-4 rounded-2xl transition-all duration-500 ease-out bg-white/5 border border-white/10 backdrop-blur-sm">
                     
                     {/* Floating Icon and Label - Top Left */}
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-lg transform group-hover:rotate-12 transition-all duration-300">
+                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-lg transition-all duration-300">
                         <Sun size={12} className="text-white" />
                       </div>
-                      <div className={`text-sm font-semibold ${
-                        settings.darkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <div className="text-sm font-semibold text-white/70">
                         Wake up
                       </div>
                     </div>
@@ -447,11 +371,7 @@ setTimeout(() => {
                         value={currentEntry.sleepData?.wakeUp || ''}
                         onChange={e => handleTimeChange('wakeUp', e.target.value)}
                         onBlur={e => handleTimeBlur('wakeUp', e.target.value)}
-                        className={`px-4 py-3 rounded-xl border transition-all duration-300 font-mono text-xl font-bold text-center tracking-wider ${
-                          settings.darkMode 
-                            ? 'bg-gray-900/80 border-gray-600/50 text-white focus:border-orange-500/80' 
-                            : 'bg-white/90 border-gray-200/70 text-gray-900 focus:border-orange-500/80'
-                        } focus:outline-none focus:ring-2 focus:ring-orange-500/20 hover:border-orange-400/60`}
+                        className="px-4 py-3 rounded-xl border transition-all duration-300 font-mono text-xl font-bold text-center tracking-wider bg-white/5 border-white/20 text-white focus:border-orange-500/80 focus:outline-none focus:ring-2 focus:ring-orange-500/20 backdrop-blur-sm"
                         style={{
                           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif',
                           width: '180px'
@@ -460,26 +380,20 @@ setTimeout(() => {
                     </div>
                     
                     {/* Animated Border */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/50 to-yellow-500/50 opacity-0 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none"></div>
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/50 to-yellow-500/50 opacity-0 transition-opacity duration-500 pointer-events-none"></div>
                   </div>
                 </div>
 
                 {/* Phone Off Time */}
                 <div className="group relative">
-                  <div className={`relative p-4 rounded-2xl transition-all duration-500 ease-out transform group-hover:scale-[1.02] group-hover:-translate-y-1 ${
-                    settings.darkMode 
-                      ? 'bg-gray-800/70 border border-gray-600/50 backdrop-blur-sm' 
-                      : 'bg-gray-50/80 border border-gray-200/70 backdrop-blur-sm'
-                  } group-hover:shadow-xl group-hover:shadow-blue-500/20`}>
+                  <div className="relative p-4 rounded-2xl transition-all duration-500 ease-out bg-white/5 border border-white/10 backdrop-blur-sm">
                     
                     {/* Floating Icon and Label - Top Left */}
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg transform group-hover:rotate-12 transition-all duration-300">
+                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg transition-all duration-300">
                         <Moon size={12} className="text-white" />
                       </div>
-                      <div className={`text-sm font-semibold ${
-                        settings.darkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <div className="text-sm font-semibold text-white/70">
                         Phone off
                       </div>
                     </div>
@@ -492,11 +406,7 @@ setTimeout(() => {
                         value={currentEntry.sleepData?.phoneOff || ''}
                         onChange={e => handleTimeChange('phoneOff', e.target.value)}
                         onBlur={e => handleTimeBlur('phoneOff', e.target.value)}
-                        className={`px-4 py-3 rounded-xl border transition-all duration-300 font-mono text-xl font-bold text-center tracking-wider ${
-                          settings.darkMode 
-                            ? 'bg-gray-900/80 border-gray-600/50 text-white focus:border-blue-500/80' 
-                            : 'bg-white/90 border-gray-200/70 text-gray-900 focus:border-blue-500/80'
-                        } focus:outline-none focus:ring-2 focus:ring-blue-500/20 hover:border-blue-400/60`}
+                        className="px-4 py-3 rounded-xl border transition-all duration-300 font-mono text-xl font-bold text-center tracking-wider bg-white/5 border-white/20 text-white focus:border-blue-500/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm"
                         style={{
                           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif',
                           width: '180px'
@@ -505,7 +415,7 @@ setTimeout(() => {
                     </div>
                     
                     {/* Animated Border */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/50 to-purple-500/50 opacity-0 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none"></div>
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/50 to-purple-500/50 opacity-0 transition-opacity duration-500 pointer-events-none"></div>
                   </div>
                 </div>
               </div>
@@ -513,9 +423,7 @@ setTimeout(() => {
               {/* Sleep Quality Section */}
               <div className="relative">
                 {/* Title */}
-                <div className={`text-lg font-semibold mb-6 text-center ${
-                  settings.darkMode ? 'text-gray-200' : 'text-gray-800'
-                }`}>
+                <div className="text-lg font-semibold mb-6 text-center text-white">
                   How did you sleep?
                 </div>
                 
@@ -529,7 +437,7 @@ setTimeout(() => {
                       <div key={emoji} className="relative group">
                         {/* Selection Ring - Static when selected */}
                         {isSelected && (
-                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/40 to-purple-500/40"></div>
+                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/40 to-blue-500/40"></div>
                         )}
                         
                         <button
@@ -541,34 +449,30 @@ setTimeout(() => {
                             button.classList.add('emoji-selected');
                             setTimeout(() => button.classList.remove('emoji-selected'), 1000);
                           }}
-                          className={`relative w-full h-20 rounded-2xl transition-all duration-500 ease-out transform hover:scale-105 active:scale-95 ${
+                          className={`relative w-full h-20 rounded-2xl transition-all duration-500 ease-out transform active:scale-95 ${
                             isSelected
-                              ? 'bg-gradient-to-br from-blue-500/30 to-purple-500/30 scale-105 shadow-2xl shadow-blue-500/30 backdrop-blur-sm border-2 border-blue-400/50'
-                              : settings.darkMode
-                                ? 'bg-gray-800/60 hover:bg-gray-700/80 border border-gray-600/50 hover:shadow-xl hover:shadow-gray-900/50'
-                                : 'bg-white/80 hover:bg-white border border-gray-200/60 hover:shadow-xl hover:shadow-gray-200/50'
-                          } hover:-translate-y-1 backdrop-blur-sm flex flex-col items-center justify-center`}
+                              ? 'bg-gradient-to-br from-purple-500/30 to-blue-500/30 scale-105 shadow-2xl shadow-purple-500/30 backdrop-blur-sm border-2 border-purple-400/50'
+                              : 'bg-white/5 border border-white/10 shadow-xl shadow-purple-900/50'
+                          } backdrop-blur-sm flex flex-col items-center justify-center`}
                         >
-                          <span className="text-3xl filter hover:brightness-110 transition-all duration-300 mb-1">
+                          <span className="text-3xl filter transition-all duration-300 mb-1">
                             {emoji}
                           </span>
-                          <span className={`text-xs font-medium ${
-                            settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
+                          <span className="text-xs font-medium text-white/60">
                             {labels[index]}
                           </span>
                           
                           {/* Hover Glow */}
-                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-0 transition-opacity duration-300"></div>
                           
                           {/* Static Glow for Selected */}
                           {isSelected && (
-                            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-blue-500/30 to-purple-500/30 blur-lg opacity-50"></div>
+                            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-purple-500/30 to-blue-500/30 blur-lg opacity-50"></div>
                           )}
                           
                           {/* One-time Wave Effect on Selection */}
-                          <div className="absolute inset-0 rounded-2xl bg-blue-500/30 opacity-0 pointer-events-none wave-ring"></div>
-                          <div className="absolute inset-0 rounded-2xl bg-blue-500/20 opacity-0 pointer-events-none wave-ring-2"></div>
+                          <div className="absolute inset-0 rounded-2xl bg-purple-500/30 opacity-0 pointer-events-none wave-ring"></div>
+                          <div className="absolute inset-0 rounded-2xl bg-purple-500/20 opacity-0 pointer-events-none wave-ring-2"></div>
                         </button>
                       </div>
                     );
@@ -582,7 +486,7 @@ setTimeout(() => {
                       <div key={emoji} className="relative group">
                         {/* Selection Ring - Static when selected */}
                         {isSelected && (
-                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/40 to-purple-500/40"></div>
+                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/40 to-blue-500/40"></div>
                         )}
                         
                         <button
@@ -590,18 +494,14 @@ setTimeout(() => {
                           onClick={() => setSleepQuality(emoji as any)}
                           className={`relative w-full h-20 rounded-2xl transition-all duration-500 ease-out transform hover:scale-105 active:scale-95 ${
                             isSelected
-                              ? 'bg-gradient-to-br from-blue-500/30 to-purple-500/30 scale-105 shadow-2xl shadow-blue-500/30 backdrop-blur-sm border-2 border-blue-400/50'
-                              : settings.darkMode
-                                ? 'bg-gray-800/60 hover:bg-gray-700/80 border border-gray-600/50 hover:shadow-xl hover:shadow-gray-900/50'
-                                : 'bg-white/80 hover:bg-white border border-gray-200/60 hover:shadow-xl hover:shadow-gray-200/50'
+                              ? 'bg-gradient-to-br from-purple-500/30 to-blue-500/30 scale-105 shadow-2xl shadow-purple-500/30 backdrop-blur-sm border-2 border-purple-400/50'
+                              : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:shadow-xl hover:shadow-purple-900/50'
                           } hover:-translate-y-1 backdrop-blur-sm flex flex-col items-center justify-center`}
                         >
                           <span className="text-3xl filter hover:brightness-110 transition-all duration-300 mb-1">
                             {emoji}
                           </span>
-                          <span className={`text-xs font-medium ${
-                            settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
+                          <span className="text-xs font-medium text-white/60">
                             {labels[index]}
                           </span>
                           
@@ -610,7 +510,7 @@ setTimeout(() => {
                           
                           {/* Static Glow for Selected */}
                           {isSelected && (
-                            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-blue-500/30 to-purple-500/30 blur-lg opacity-50"></div>
+                            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-purple-500/30 to-blue-500/30 blur-lg opacity-50"></div>
                           )}
                         </button>
                       </div>
@@ -627,7 +527,7 @@ setTimeout(() => {
                       <div key={emoji} className="relative group w-32">
                         {/* Selection Ring - Static when selected */}
                         {isSelected && (
-                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/40 to-purple-500/40"></div>
+                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/40 to-blue-500/40"></div>
                         )}
                         
                         <button
@@ -635,18 +535,14 @@ setTimeout(() => {
                           onClick={() => setSleepQuality(emoji as any)}
                           className={`relative w-full h-20 rounded-2xl transition-all duration-500 ease-out transform hover:scale-105 active:scale-95 ${
                             isSelected
-                              ? 'bg-gradient-to-br from-blue-500/30 to-purple-500/30 scale-105 shadow-2xl shadow-blue-500/30 backdrop-blur-sm border-2 border-blue-400/50'
-                              : settings.darkMode
-                                ? 'bg-gray-800/60 hover:bg-gray-700/80 border border-gray-600/50 hover:shadow-xl hover:shadow-gray-900/50'
-                                : 'bg-white/80 hover:bg-white border border-gray-200/60 hover:shadow-xl hover:shadow-gray-200/50'
+                              ? 'bg-gradient-to-br from-purple-500/30 to-blue-500/30 scale-105 shadow-2xl shadow-purple-500/30 backdrop-blur-sm border-2 border-purple-400/50'
+                              : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:shadow-xl hover:shadow-purple-900/50'
                           } hover:-translate-y-1 backdrop-blur-sm flex flex-col items-center justify-center`}
                         >
                           <span className="text-3xl filter hover:brightness-110 transition-all duration-300 mb-1">
                             {emoji}
                           </span>
-                          <span className={`text-xs font-medium ${
-                            settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
+                          <span className="text-xs font-medium text-white/60">
                             {labels[index]}
                           </span>
                           
@@ -655,7 +551,7 @@ setTimeout(() => {
                           
                           {/* Static Glow for Selected */}
                           {isSelected && (
-                            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-blue-500/30 to-purple-500/30 blur-lg opacity-50"></div>
+                            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-purple-500/30 to-blue-500/30 blur-lg opacity-50"></div>
                           )}
                         </button>
                       </div>
@@ -669,9 +565,7 @@ setTimeout(() => {
                 {[...Array(6)].map((_, i) => (
                   <div
                     key={i}
-                    className={`absolute w-1 h-1 rounded-full ${
-                      settings.darkMode ? 'bg-blue-400/30' : 'bg-blue-500/20'
-                    } animate-float`}
+                    className="absolute w-1 h-1 rounded-full bg-blue-400/30 animate-float"
                     style={{
                       left: `${Math.random() * 100}%`,
                       top: `${Math.random() * 100}%`,
@@ -684,11 +578,7 @@ setTimeout(() => {
             </div>
 
             {/* Daily Metrics - Compact Apple Style */}
-            <div className={`relative p-6 rounded-2xl overflow-hidden ${
-              settings.darkMode 
-                ? 'bg-gray-800/80 border border-gray-700/50 backdrop-blur-sm' 
-                : 'bg-white/90 border border-gray-200/50 backdrop-blur-sm shadow-sm'
-            }`}>
+            <div className="relative p-6 rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-xl">
               {/* Subtle Background Gradient */}
               <div className="absolute inset-0 opacity-20">
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-500/10 via-blue-500/5 to-emerald-500/10"></div>
@@ -700,9 +590,7 @@ setTimeout(() => {
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg">
                     <div className="w-3 h-3 rounded-full bg-white/30"></div>
                   </div>
-                  <h3 className={`text-lg font-semibold ${
-                    settings.darkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
+                  <h3 className="text-lg font-semibold text-white">
                     Daily Metrics
                   </h3>
                 </div>
@@ -716,15 +604,11 @@ setTimeout(() => {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
                       <span className="text-lg">⭐</span>
-                      <label className={`text-sm font-semibold ${
-                        settings.darkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <label className="text-sm font-semibold text-white/70">
                         Day Rating
                       </label>
                     </div>
-                    <div className={`text-2xl font-bold font-mono ${
-                      settings.darkMode ? 'text-purple-400' : 'text-purple-600'
-                    }`}>
+                    <div className="text-2xl font-bold font-mono text-purple-400">
                       {(currentEntry.dayRating || 3).toFixed(1)}
                     </div>
                   </div>
@@ -740,7 +624,7 @@ setTimeout(() => {
                       onChange={(e) => updateEntry({ dayRating: parseFloat(e.target.value) })}
                       className="slider w-full h-2 rounded-full appearance-none cursor-pointer transition-all duration-300 focus:outline-none"
                       style={{
-                        background: `linear-gradient(to right, #8b5cf6 0%, #a855f7 ${((currentEntry.dayRating || 3) - 1) * 25}%, ${settings.darkMode ? '#374151' : '#e5e7eb'} ${((currentEntry.dayRating || 3) - 1) * 25}%, ${settings.darkMode ? '#374151' : '#e5e7eb'} 100%)`
+                        background: `linear-gradient(to right, #8b5cf6 0%, #a855f7 ${((currentEntry.dayRating || 3) - 1) * 25}%, rgba(255,255,255,0.1) ${((currentEntry.dayRating || 3) - 1) * 25}%, rgba(255,255,255,0.1) 100%)`
                       }}
                     />
                     
@@ -751,8 +635,8 @@ setTimeout(() => {
                           key={value}
                           className={`text-xs font-medium transition-all duration-300 ${
                             Math.round(currentEntry.dayRating || 3) === value
-                              ? settings.darkMode ? 'text-purple-400' : 'text-purple-600'
-                              : settings.darkMode ? 'text-gray-500' : 'text-gray-400'
+                              ? 'text-purple-400'
+                              : 'text-white/40'
                           }`}
                         >
                           {value}
@@ -767,15 +651,11 @@ setTimeout(() => {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
                       <span className="text-lg">🏃</span>
-                      <label className={`text-sm font-semibold ${
-                        settings.darkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <label className="text-sm font-semibold text-white/70">
                         Miles Ran
                       </label>
                     </div>
-                    <div className={`text-2xl font-bold font-mono ${
-                      settings.darkMode ? 'text-emerald-400' : 'text-emerald-600'
-                    }`}>
+                    <div className="text-2xl font-bold font-mono text-emerald-400">
                       {(currentEntry.miles || 0).toFixed(1)}
                       <span className="text-sm ml-1">mi</span>
                     </div>
@@ -792,7 +672,7 @@ setTimeout(() => {
                       onChange={(e) => updateEntry({ miles: parseFloat(e.target.value) })}
                       className="slider-miles w-full h-2 rounded-full appearance-none cursor-pointer transition-all duration-300 focus:outline-none"
                       style={{
-                        background: `linear-gradient(to right, #10b981 0%, #059669 ${(currentEntry.miles || 0) * 10}%, ${settings.darkMode ? '#374151' : '#e5e7eb'} ${(currentEntry.miles || 0) * 10}%, ${settings.darkMode ? '#374151' : '#e5e7eb'} 100%)`
+                        background: `linear-gradient(to right, #10b981 0%, #059669 ${(currentEntry.miles || 0) * 10}%, rgba(255,255,255,0.1) ${(currentEntry.miles || 0) * 10}%, rgba(255,255,255,0.1) 100%)`
                       }}
                     />
                     
@@ -803,8 +683,8 @@ setTimeout(() => {
                           key={value}
                           className={`text-xs font-medium transition-all duration-300 ${
                             Math.abs((currentEntry.miles || 0) - value) < 0.5
-                              ? settings.darkMode ? 'text-emerald-400' : 'text-emerald-600'
-                              : settings.darkMode ? 'text-gray-500' : 'text-gray-400'
+                              ? 'text-emerald-400'
+                              : 'text-white/40'
                           }`}
                         >
                           {value}
@@ -873,31 +753,21 @@ setTimeout(() => {
       onClick={() => setIsAIReflectionExpanded(false)}
     />
     
-    <div className={`relative w-full max-w-2xl max-h-[80vh] ${
-      settings.darkMode 
-        ? 'bg-gray-900 border border-gray-700' 
-        : 'bg-white border border-gray-200'
-    } rounded-3xl shadow-2xl overflow-hidden`}>
+    <div className="relative w-full max-w-2xl max-h-[80vh] bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-purple-500/20 overflow-hidden">
       
-      <div className="p-6 border-b border-gray-200/20">
+      <div className="p-6 border-b border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
               <Brain size={16} className="text-white" />
             </div>
-            <h2 className={`text-xl font-bold ${
-              settings.darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className="text-xl font-bold text-white">
               AI Journal Reflection
             </h2>
           </div>
           <button
             onClick={() => setIsAIReflectionExpanded(false)}
-            className={`p-2 rounded-xl ${
-              settings.darkMode 
-                ? 'hover:bg-gray-800 text-gray-400 hover:text-white' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            }`}
+            className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white transition-colors"
           >
             <X size={24} />
           </button>
@@ -905,9 +775,7 @@ setTimeout(() => {
       </div>
       
       <div className="p-6 overflow-y-auto max-h-[60vh]">
-        <p className={`text-base leading-relaxed whitespace-pre-line ${
-          settings.darkMode ? 'text-gray-200' : 'text-gray-700'
-        }`}>
+        <p className="text-base leading-relaxed whitespace-pre-line text-white/80">
           {currentEntry.ai_reflection}
         </p>
       </div>
@@ -926,26 +794,16 @@ setTimeout(() => {
             onClick={() => setIsJournalExpanded(false)}
           />
           
-          <div className={`relative w-full max-w-4xl max-h-[90vh] ${
-            settings.darkMode 
-              ? 'bg-gray-900 border border-gray-700' 
-              : 'bg-white border border-gray-200'
-          } rounded-3xl shadow-2xl overflow-hidden`}>
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-purple-500/20 overflow-hidden">
             
-            <div className="p-6 border-b border-gray-200/20">
+            <div className="p-6 border-b border-white/10">
               <div className="flex items-center justify-between">
-                <h2 className={`text-2xl font-bold ${
-                  settings.darkMode ? 'text-white' : 'text-gray-900'
-                }`}>
+                <h2 className="text-2xl font-bold text-white">
                   Focused Writing
                 </h2>
                 <button
                   onClick={() => setIsJournalExpanded(false)}
-                  className={`p-2 rounded-xl ${
-                    settings.darkMode 
-                      ? 'hover:bg-gray-800 text-gray-400 hover:text-white' 
-                      : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                  }`}
+                  className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -957,11 +815,7 @@ setTimeout(() => {
                 value={currentEntry.content}
                 onChange={(e) => updateEntry({ content: e.target.value })}
                 placeholder="Let your thoughts flow freely..."
-                className={`w-full h-96 p-6 rounded-2xl border-2 resize-none ${
-                  settings.darkMode 
-                    ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500'
-                } focus:outline-none focus:ring-2 focus:ring-emerald-500 text-lg`}
+                className="w-full h-96 p-6 rounded-2xl border resize-none bg-white/5 border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-lg backdrop-blur-sm"
                 autoFocus
               />
             </div>

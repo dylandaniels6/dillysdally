@@ -1,538 +1,600 @@
 import React, { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, TrendingDown, Info, DollarSign } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Wallet, TrendingDown, Info, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '../utils/expenseHelpers';
 import { categoryColors, purpleGradient } from '../utils/categoryColors';
 
 interface ExpenseSankeyProps {
   expenses: any[];
-  income?: number; // Monthly income
+  income?: number;
   settings: { darkMode: boolean };
   timeRange: string;
 }
 
-interface FlowNode {
-  name: string;
-  value: number;
-  x: number;
-  y: number;
-  height: number;
-  color: string;
-  type: 'source' | 'category' | 'subcategory';
-}
-
-interface FlowLink {
-  source: string;
-  target: string;
-  value: number;
-  sourceNode?: FlowNode;
-  targetNode?: FlowNode;
-}
-
 const ExpenseSankey: React.FC<ExpenseSankeyProps> = ({ 
   expenses, 
-  income = 5000, // Default income if not provided
+  income = 5000,
   settings,
   timeRange 
 }) => {
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  
-  // Process data for Sankey diagram
-  const sankeyData = useMemo(() => {
-    // Calculate total expenses
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+
+  // Extended color palette with consistent, accessible colors
+  const extendedCategoryColors = {
+    ...categoryColors,
+    'groceries': '#10B981',
+    'eating out': '#8B5CF6', 
+    'transportation': '#3B82F6',
+    'entertainment': '#F59E0B',
+    'bills': '#EF4444',
+    'shopping': '#EC4899',
+    'subscriptions': '#6366F1',
+    'health': '#14B8A6',
+    'travel': '#F97316',
+    'education': '#84CC16',
+    'gifts': '#A855F7',
+    'other': '#6B7280'
+  };
+
+  // Process data for all scenarios including zero income and negative cash flow
+  const visualData = useMemo(() => {
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const savings = Math.max(0, income - totalExpenses);
-    
-    // Group by category and subcategory
-    const categoryGroups = new Map<string, Map<string, number>>();
-    
+    const netFlow = income - totalExpenses;
+    const isDeficit = netFlow < 0;
+    const hasIncome = income > 0;
+    const hasExpenses = totalExpenses > 0;
+
+    // Handle edge cases
+    if (!hasExpenses && !hasIncome) {
+      return { 
+        nodes: [], 
+        flows: [], 
+        totalExpenses: 0, 
+        netFlow: 0,
+        isDeficit: false,
+        isEmpty: true 
+      };
+    }
+
+    // Group by category
+    const categoryTotals = new Map<string, number>();
     expenses.forEach(expense => {
-      if (!categoryGroups.has(expense.category)) {
-        categoryGroups.set(expense.category, new Map());
-      }
-      
-      // Extract subcategory from description (e.g., "Starbucks" from "Coffee at Starbucks")
-      const subcategory = expense.description.split(' at ')[1] || 
-                         expense.description.split(' from ')[1] || 
-                         expense.description.split(' - ')[0] ||
-                         'Other';
-      
-      const categoryMap = categoryGroups.get(expense.category)!;
-      categoryMap.set(subcategory, (categoryMap.get(subcategory) || 0) + expense.amount);
+      categoryTotals.set(expense.category, (categoryTotals.get(expense.category) || 0) + expense.amount);
     });
-    
-    // Create nodes
-    const nodes: FlowNode[] = [
-      // Source node
-      {
-        name: 'Income',
-        value: income,
-        x: 50,
-        y: 200,
-        height: 200,
-        color: purpleGradient.start,
-        type: 'source'
+
+    const getColorForCategory = (category: string, index: number) => {
+      if (extendedCategoryColors[category]) {
+        return extendedCategoryColors[category];
       }
-    ];
+      const fallbackColors = ['#6B7280', '#9CA3AF', '#4B5563', '#374151'];
+      return fallbackColors[index % fallbackColors.length];
+    };
+
+    // Sort categories by amount
+    const sortedCategories = Array.from(categoryTotals.entries())
+      .sort((a, b) => b[1] - a[1]);
+
+    const nodes = [];
+    const flows = [];
+
+    // Layout constants for clean spacing
+    const nodeSpacing = 12;
+    const minNodeHeight = 30;
+    const maxNodeHeight = 120;
+    const containerHeight = 320;
+    const availableHeight = containerHeight - 80; // Leave space for margins
+
+    // Calculate proportional heights
+    const calculateNodeHeight = (value: number, total: number) => {
+      if (total === 0) return minNodeHeight;
+      const proportion = value / total;
+      return Math.max(minNodeHeight, Math.min(maxNodeHeight, proportion * availableHeight));
+    };
+
+    // Create expense nodes first to calculate layout
+    let expenseY = 60;
+    const expenseNodes = [];
     
-    // Create links
-    const links: FlowLink[] = [];
-    
-    // Add savings node if positive
-    if (savings > 0) {
-      nodes.push({
-        name: 'Savings',
-        value: savings,
-        x: 950,
-        y: 50,
-        height: (savings / income) * 200,
-        color: '#10B981',
-        type: 'category'
-      });
-      links.push({
-        source: 'Income',
-        target: 'Savings',
-        value: savings
+    if (hasExpenses) {
+      sortedCategories.forEach(([category, amount], index) => {
+        const nodeHeight = calculateNodeHeight(amount, totalExpenses);
+        const color = getColorForCategory(category, index);
+        
+        expenseNodes.push({
+          name: category.charAt(0).toUpperCase() + category.slice(1),
+          value: amount,
+          x: 320,
+          y: expenseY,
+          width: 160,
+          height: nodeHeight,
+          color: color,
+          category: category,
+          percentage: (amount / totalExpenses) * 100
+        });
+
+        expenseY += nodeHeight + nodeSpacing;
       });
     }
-    
-    // Calculate positions for category nodes
-    let categoryY = savings > 0 ? 150 : 50;
-    const categoryX = 500;
-    const subcategoryX = 950;
-    
-    // Sort categories by value
-    const sortedCategories = Array.from(categoryGroups.entries())
-      .sort((a, b) => {
-        const sumA = Array.from(a[1].values()).reduce((sum, val) => sum + val, 0);
-        const sumB = Array.from(b[1].values()).reduce((sum, val) => sum + val, 0);
-        return sumB - sumA;
+
+    // Calculate center points for positioning
+    const expenseBlockHeight = expenseY - 60 - nodeSpacing;
+    const expenseCenter = 60 + (expenseBlockHeight / 2);
+
+    // Income node positioning - centered on expense block or standalone
+    if (hasIncome) {
+      const incomeHeight = hasExpenses ? 
+        Math.min(140, expenseBlockHeight * 0.8) : 
+        100;
+      const incomeY = expenseCenter - (incomeHeight / 2);
+
+      nodes.push({
+        name: 'Income',
+        value: income,
+        x: 60,
+        y: incomeY,
+        width: 180,
+        height: incomeHeight,
+        color: '#8B5CF6',
+        category: 'income',
+        percentage: 100
       });
-    
-    sortedCategories.forEach(([category, subcategories]) => {
-      const categoryTotal = Array.from(subcategories.values()).reduce((sum, val) => sum + val, 0);
-      const categoryHeight = (categoryTotal / income) * 200;
-      
-      // Add category node
-      const categoryNode: FlowNode = {
-        name: category.charAt(0).toUpperCase() + category.slice(1),
-        value: categoryTotal,
-        x: categoryX,
-        y: categoryY,
-        height: categoryHeight,
-        color: categoryColors[category] || categoryColors.other,
-        type: 'category'
-      };
-      nodes.push(categoryNode);
-      
-      // Add link from income to category
-      links.push({
-        source: 'Income',
-        target: categoryNode.name,
-        value: categoryTotal
+    }
+
+    // Add expense nodes to main nodes array
+    nodes.push(...expenseNodes);
+
+    // Result node (Savings/Deficit/Debt Funding)
+    if (hasExpenses) {
+      const resultValue = Math.abs(netFlow);
+      let resultHeight, resultColor, resultName;
+
+      if (isDeficit) {
+        // Negative cash flow scenarios
+        if (hasIncome) {
+          // Deficit: spending more than income
+          resultHeight = Math.min(120, (resultValue / totalExpenses) * availableHeight);
+          resultColor = '#EF4444';
+          resultName = 'Deficit';
+        } else {
+          // No income: all expenses funded by debt/savings
+          resultHeight = Math.min(140, expenseBlockHeight * 0.8);
+          resultColor = '#F97316';
+          resultName = 'Debt/Savings';
+        }
+      } else {
+        // Positive cash flow: traditional savings
+        resultHeight = hasIncome ? 
+          Math.min(100, (netFlow / income) * availableHeight) : 
+          minNodeHeight;
+        resultColor = '#10B981';
+        resultName = 'Savings';
+      }
+
+      const resultY = expenseCenter - (resultHeight / 2);
+
+      nodes.push({
+        name: resultName,
+        value: hasIncome ? resultValue : totalExpenses,
+        x: 560,
+        y: resultY,
+        width: 160,
+        height: resultHeight,
+        color: resultColor,
+        category: isDeficit ? 'deficit' : 'savings',
+        percentage: hasIncome ? (resultValue / income) * 100 : 100
       });
-      
-      // Add subcategory nodes
-      let subcategoryY = categoryY;
-      const sortedSubcategories = Array.from(subcategories.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5); // Top 5 subcategories
-      
-      sortedSubcategories.forEach(([subcategory, value]) => {
-        const subcategoryHeight = (value / income) * 200;
-        
-        const subcategoryNode: FlowNode = {
-          name: subcategory,
-          value: value,
-          x: subcategoryX,
-          y: subcategoryY,
-          height: subcategoryHeight,
-          color: categoryNode.color,
-          type: 'subcategory'
-        };
-        nodes.push(subcategoryNode);
-        
-        // Add link from category to subcategory
-        links.push({
-          source: categoryNode.name,
-          target: subcategory,
-          value: value
+
+      // Create flows based on scenario
+      if (hasIncome) {
+        // Standard income-to-expense flows
+        let sourceOffset = 0;
+        const incomeNode = nodes.find(n => n.category === 'income');
+
+        sortedCategories.forEach(([category], index) => {
+          const categoryNode = expenseNodes[index];
+          const flowProportion = categoryNode.value / income;
+          const flowHeight = flowProportion * incomeNode.height;
+
+          flows.push({
+            id: `income-${category}`,
+            sourceX: incomeNode.x + incomeNode.width,
+            sourceY: incomeNode.y + sourceOffset,
+            sourceHeight: flowHeight,
+            targetX: categoryNode.x,
+            targetY: categoryNode.y,
+            targetHeight: categoryNode.height,
+            color: categoryNode.color,
+            value: categoryNode.value,
+            category: category
+          });
+
+          sourceOffset += flowHeight;
         });
-        
-        subcategoryY += subcategoryHeight + 10;
-      });
-      
-      // Add "Others" node if there are more subcategories
-      const othersTotal = categoryTotal - sortedSubcategories.reduce((sum, [, val]) => sum + val, 0);
-      if (othersTotal > 0) {
-        const othersHeight = (othersTotal / income) * 200;
-        nodes.push({
-          name: `Other ${category}`,
-          value: othersTotal,
-          x: subcategoryX,
-          y: subcategoryY,
-          height: othersHeight,
-          color: categoryNode.color,
-          type: 'subcategory'
-        });
-        links.push({
-          source: categoryNode.name,
-          target: `Other ${category}`,
-          value: othersTotal
+      } else {
+        // No income: debt/savings funding expenses
+        const resultNode = nodes.find(n => n.category !== 'income' && !expenseNodes.includes(n));
+        let sourceOffset = 0;
+
+        sortedCategories.forEach(([category], index) => {
+          const categoryNode = expenseNodes[index];
+          const flowProportion = categoryNode.value / totalExpenses;
+          const flowHeight = flowProportion * resultNode.height;
+
+          flows.push({
+            id: `debt-${category}`,
+            sourceX: resultNode.x,
+            sourceY: resultNode.y + sourceOffset,
+            sourceHeight: flowHeight,
+            targetX: categoryNode.x + categoryNode.width,
+            targetY: categoryNode.y,
+            targetHeight: categoryNode.height,
+            color: categoryNode.color,
+            value: categoryNode.value,
+            category: category,
+            isReverse: true
+          });
+
+          sourceOffset += flowHeight;
         });
       }
-      
-      categoryY += categoryHeight + 20;
-    });
-    
-    // Assign node references to links
-    links.forEach(link => {
-      link.sourceNode = nodes.find(n => n.name === link.source);
-      link.targetNode = nodes.find(n => n.name === link.target);
-    });
-    
-    return { nodes, links, totalExpenses, savings };
+
+      // Result flows (expense-to-result)
+      if (hasIncome) {
+        const resultNode = nodes.find(n => ['deficit', 'savings'].includes(n.category));
+        let targetOffset = 0;
+
+        sortedCategories.forEach(([category], index) => {
+          const categoryNode = expenseNodes[index];
+          const flowProportion = categoryNode.value / totalExpenses;
+          const flowHeight = flowProportion * resultNode.height;
+
+          flows.push({
+            id: `${category}-result`,
+            sourceX: categoryNode.x + categoryNode.width,
+            sourceY: categoryNode.y,
+            sourceHeight: categoryNode.height,
+            targetX: resultNode.x,
+            targetY: resultNode.y + targetOffset,
+            targetHeight: flowHeight,
+            color: categoryNode.color,
+            value: categoryNode.value,
+            category: category
+          });
+
+          targetOffset += flowHeight;
+        });
+      }
+    }
+
+    return { 
+      nodes, 
+      flows, 
+      totalExpenses, 
+      netFlow,
+      isDeficit,
+      hasIncome,
+      hasExpenses,
+      isEmpty: false
+    };
   }, [expenses, income]);
-  
-  // Generate SVG path for curved links
-  const generateLinkPath = (link: FlowLink): string => {
-    if (!link.sourceNode || !link.targetNode) return '';
+
+  // Smooth Sankey flow component with Apple-quality animations
+  const SankeyFlow = ({ flow, isHighlighted }) => {
+    const controlOffset = 140;
     
-    const sourceX = link.sourceNode.x + 150; // Width of node
-    const sourceY = link.sourceNode.y + (link.sourceNode.height / 2);
-    const targetX = link.targetNode.x;
-    const targetY = link.targetNode.y + (link.targetNode.height / 2);
-    
-    const midX = (sourceX + targetX) / 2;
-    
-    return `M ${sourceX} ${sourceY} C ${midX} ${sourceY}, ${midX} ${targetY}, ${targetX} ${targetY}`;
+    let pathD;
+    if (flow.isReverse) {
+      // Right-to-left flow for debt funding
+      pathD = `
+        M ${flow.sourceX} ${flow.sourceY}
+        L ${flow.sourceX} ${flow.sourceY + flow.sourceHeight}
+        C ${flow.sourceX - controlOffset} ${flow.sourceY + flow.sourceHeight}, 
+          ${flow.targetX + controlOffset} ${flow.targetY + flow.targetHeight}, 
+          ${flow.targetX} ${flow.targetY + flow.targetHeight}
+        L ${flow.targetX} ${flow.targetY}
+        C ${flow.targetX + controlOffset} ${flow.targetY}, 
+          ${flow.sourceX - controlOffset} ${flow.sourceY}, 
+          ${flow.sourceX} ${flow.sourceY}
+        Z
+      `;
+    } else {
+      // Standard left-to-right flow
+      pathD = `
+        M ${flow.sourceX} ${flow.sourceY}
+        L ${flow.sourceX} ${flow.sourceY + flow.sourceHeight}
+        C ${flow.sourceX + controlOffset} ${flow.sourceY + flow.sourceHeight}, 
+          ${flow.targetX - controlOffset} ${flow.targetY + flow.targetHeight}, 
+          ${flow.targetX} ${flow.targetY + flow.targetHeight}
+        L ${flow.targetX} ${flow.targetY}
+        C ${flow.targetX - controlOffset} ${flow.targetY}, 
+          ${flow.sourceX + controlOffset} ${flow.sourceY}, 
+          ${flow.sourceX} ${flow.sourceY}
+        Z
+      `;
+    }
+
+    const opacity = hoveredCategory === null ? 0.6 : isHighlighted ? 0.85 : 0.08;
+
+    return (
+      <motion.path
+        d={pathD}
+        fill={`url(#gradient-${flow.id})`}
+        animate={{ opacity }}
+        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+        style={{
+          filter: isHighlighted ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' : 'none'
+        }}
+      />
+    );
   };
-  
-  const { nodes, links, totalExpenses, savings } = sankeyData;
-  
-  return (
-    <div className="h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl ${
-            settings.darkMode ? 'bg-gray-700' : 'bg-gray-100'
-          }`}>
-            <Wallet size={20} className="text-purple-500" />
-          </div>
-          <div>
-            <h3 className={`text-lg font-semibold ${
-              settings.darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Cash Flow Visualization
-            </h3>
-            <p className={`text-sm ${
-              settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              Track where your money goes
-            </p>
-          </div>
-        </div>
+
+  // Glass-morphism node component with Apple-quality styling
+  const SankeyNode = ({ node, isConnected }) => {
+    const opacity = hoveredCategory === null ? 1 : isConnected ? 1 : 0.3;
+    const scale = hoveredCategory === node.category ? 1.02 : 1;
+    
+    return (
+      <motion.g
+        onHoverStart={() => setHoveredCategory(node.category)}
+        onHoverEnd={() => setHoveredCategory(null)}
+        animate={{ opacity, scale }}
+        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+        style={{ cursor: 'pointer' }}
+      >
+        {/* Glass background */}
+        <rect
+          x={node.x}
+          y={node.y}
+          width={node.width}
+          height={node.height}
+          rx="16"
+          fill="rgba(255, 255, 255, 0.1)"
+          style={{
+            backdropFilter: 'blur(10px)',
+            filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.1))'
+          }}
+        />
         
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className={`text-sm ${
-              settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              Flow Efficiency
-            </div>
-            <div className={`text-lg font-semibold ${
-              savings > 0 ? 'text-green-500' : 'text-red-500'
-            }`}>
-              {((savings / income) * 100).toFixed(1)}%
-            </div>
-          </div>
+        {/* Color accent */}
+        <rect
+          x={node.x}
+          y={node.y}
+          width={node.width}
+          height={node.height}
+          rx="16"
+          fill={node.color}
+          opacity={0.8}
+        />
+        
+        {/* Inner highlight for glass effect */}
+        <rect
+          x={node.x + 1}
+          y={node.y + 1}
+          width={node.width - 2}
+          height={node.height - 2}
+          rx="15"
+          fill="url(#glassHighlight)"
+          opacity={0.3}
+        />
+        
+        {/* Category name */}
+        <text
+          x={node.x + node.width/2}
+          y={node.y + node.height/2 - 8}
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="fill-white font-semibold"
+          fontSize="14"
+          style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}
+        >
+          {node.name}
+        </text>
+        
+        {/* Amount */}
+        <text
+          x={node.x + node.width/2}
+          y={node.y + node.height/2 + 8}
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="fill-white/90 font-medium"
+          fontSize="12"
+          style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}
+        >
+          {formatCurrency(node.value)}
+        </text>
+        
+        {/* Percentage for larger nodes */}
+        {node.height > 50 && (
+          <text
+            x={node.x + node.width/2}
+            y={node.y + node.height/2 + 22}
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-white/75 font-medium"
+            fontSize="10"
+            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}
+          >
+            {node.percentage.toFixed(1)}%
+          </text>
+        )}
+      </motion.g>
+    );
+  };
+
+  const efficiencyRate = income > 0 ? ((visualData.netFlow / income) * 100).toFixed(1) : '0.0';
+
+  // Handle empty state
+  if (visualData.isEmpty) {
+    return (
+      <div 
+        className="w-full h-96 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2)'
+        }}
+      >
+        <div className="text-center">
+          <Info size={48} className="text-white/50 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white/80 mb-2">No Data Available</h3>
+          <p className="text-white/60">Add some expenses or income to see your cash flow visualization</p>
         </div>
       </div>
-      
-      {/* Sankey Diagram */}
-      <div className="relative h-[600px] overflow-hidden">
-        <svg width="100%" height="100%" viewBox="0 0 1200 600">
+    );
+  }
+
+  return (
+    <div 
+      className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 transition-all duration-500 ease-out"
+      style={{
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+        backdropFilter: 'blur(20px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2)'
+      }}
+    >
+      {/* Sankey Visualization */}
+      <div className="h-80 relative mb-6">
+        <svg width="100%" height="100%" viewBox="0 0 800 320">
           <defs>
-            {/* Gradient definitions */}
-            {Object.entries(categoryColors).map(([category, color]) => (
-              <linearGradient key={category} id={`gradient-${category}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-                <stop offset="50%" stopColor={color} stopOpacity="0.2" />
-                <stop offset="100%" stopColor={color} stopOpacity="0.1" />
+            {/* Glass highlight gradient */}
+            <linearGradient id="glassHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="white" stopOpacity="0.4" />
+              <stop offset="50%" stopColor="white" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="white" stopOpacity="0.0" />
+            </linearGradient>
+            
+            {/* Flow gradients */}
+            {visualData.flows.map(flow => (
+              <linearGradient 
+                key={`gradient-${flow.id}`} 
+                id={`gradient-${flow.id}`} 
+                x1="0%" 
+                y1="0%" 
+                x2="100%" 
+                y2="0%"
+              >
+                <stop offset="0%" stopColor={flow.color} stopOpacity="0.7" />
+                <stop offset="50%" stopColor={flow.color} stopOpacity="0.5" />
+                <stop offset="100%" stopColor={flow.color} stopOpacity="0.3" />
               </linearGradient>
             ))}
-            <linearGradient id="gradient-income" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={purpleGradient.start} stopOpacity="0.3" />
-              <stop offset="100%" stopColor={purpleGradient.start} stopOpacity="0.1" />
-            </linearGradient>
-            <linearGradient id="gradient-savings" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#10B981" stopOpacity="0.1" />
-            </linearGradient>
           </defs>
-          
-          {/* Links */}
-          <g className="links">
-            {links.map((link, index) => {
-              const isHighlighted = !hoveredNode || 
-                hoveredNode === link.source || 
-                hoveredNode === link.target;
-              
-              return (
-                <motion.path
-                  key={`${link.source}-${link.target}`}
-                  d={generateLinkPath(link)}
-                  fill="none"
-                  stroke={link.sourceNode?.color || '#666'}
-                  strokeWidth={(link.value / income) * 100}
-                  opacity={isHighlighted ? 0.6 : 0.2}
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 1, delay: index * 0.05 }}
-                  style={{
-                    filter: isHighlighted ? 'blur(0px)' : 'blur(1px)'
-                  }}
-                />
-              );
-            })}
-          </g>
-          
-          {/* Nodes */}
-          <g className="nodes">
-            {nodes.map((node, index) => {
-              const isHighlighted = !hoveredNode || hoveredNode === node.name;
-              const isSource = node.type === 'source';
-              const isSavings = node.name === 'Savings';
-              
-              return (
-                <motion.g
-                  key={node.name}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: index * 0.05 }}
-                  onMouseEnter={() => setHoveredNode(node.name)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  onClick={() => node.type === 'category' && setSelectedCategory(node.name)}
-                  style={{ cursor: node.type === 'category' ? 'pointer' : 'default' }}
-                >
-                  {/* Node rectangle */}
-                  <rect
-                    x={node.x}
-                    y={node.y}
-                    width={150}
-                    height={node.height}
-                    rx={8}
-                    fill={node.color}
-                    opacity={isHighlighted ? 0.9 : 0.6}
-                    stroke={isHighlighted ? node.color : 'transparent'}
-                    strokeWidth={2}
-                  />
-                  
-                  {/* Gradient overlay */}
-                  <rect
-                    x={node.x}
-                    y={node.y}
-                    width={150}
-                    height={node.height}
-                    rx={8}
-                    fill={`url(#gradient-${node.name.toLowerCase().replace(' ', '-')})`}
-                    opacity={isHighlighted ? 1 : 0.5}
-                  />
-                  
-                  {/* Node label */}
-                  <text
-                    x={node.x + 75}
-                    y={node.y + node.height / 2}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className={`text-sm font-medium fill-current ${
-                      settings.darkMode ? 'text-white' : 'text-gray-900'
-                    }`}
-                    style={{
-                      opacity: isHighlighted ? 1 : 0.7,
-                      fontSize: node.type === 'subcategory' ? '12px' : '14px'
-                    }}
-                  >
-                    {node.name}
-                  </text>
-                  
-                  {/* Value label */}
-                  <text
-                    x={node.x + 75}
-                    y={node.y + node.height / 2 + 20}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className={`text-xs fill-current ${
-                      settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}
-                    style={{ opacity: isHighlighted ? 1 : 0 }}
-                  >
-                    {formatCurrency(node.value)}
-                  </text>
-                  
-                  {/* Percentage label for categories */}
-                  {node.type === 'category' && (
-                    <text
-                      x={node.x + 75}
-                      y={node.y + node.height / 2 + 35}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      className={`text-xs fill-current ${
-                        settings.darkMode ? 'text-gray-500' : 'text-gray-500'
-                      }`}
-                      style={{ opacity: isHighlighted ? 0.8 : 0 }}
-                    >
-                      {((node.value / income) * 100).toFixed(1)}%
-                    </text>
-                  )}
-                </motion.g>
-              );
-            })}
-          </g>
-          
-          {/* Labels for columns */}
-          <g className="column-labels">
-            <text
-              x={125}
-              y={30}
-              textAnchor="middle"
-              className={`text-sm font-semibold fill-current ${
-                settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}
-            >
-              Income Source
+
+          {/* Subtle column indicators */}
+          {visualData.hasIncome && (
+            <text x="150" y="30" textAnchor="middle" className="fill-white/40 text-sm font-medium">
+              Income
             </text>
-            <text
-              x={575}
-              y={30}
-              textAnchor="middle"
-              className={`text-sm font-semibold fill-current ${
-                settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}
-            >
-              Categories
+          )}
+          {visualData.hasExpenses && (
+            <text x="400" y="30" textAnchor="middle" className="fill-white/40 text-sm font-medium">
+              Expenses
             </text>
-            <text
-              x={1025}
-              y={30}
-              textAnchor="middle"
-              className={`text-sm font-semibold fill-current ${
-                settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}
-            >
-              Details
+          )}
+          {(visualData.isDeficit || (!visualData.hasIncome && visualData.hasExpenses)) && (
+            <text x="640" y="30" textAnchor="middle" className="fill-white/40 text-sm font-medium">
+              {!visualData.hasIncome ? 'Funding' : (visualData.isDeficit ? 'Deficit' : 'Savings')}
             </text>
-          </g>
+          )}
+
+          {/* Render flows first */}
+          {visualData.flows.map(flow => {
+            const isHighlighted = hoveredCategory === null || 
+                                hoveredCategory === flow.category ||
+                                hoveredCategory === 'income';
+            
+            return (
+              <SankeyFlow
+                key={flow.id}
+                flow={flow}
+                isHighlighted={isHighlighted}
+              />
+            );
+          })}
+
+          {/* Render nodes */}
+          {visualData.nodes.map(node => {
+            const isConnected = hoveredCategory === null || 
+                              hoveredCategory === node.category ||
+                              hoveredCategory === 'income';
+            
+            return (
+              <SankeyNode
+                key={node.name}
+                node={node}
+                isConnected={isConnected}
+              />
+            );
+          })}
         </svg>
       </div>
-      
-      {/* Summary Stats */}
-      <div className="mt-6 grid grid-cols-4 gap-4">
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className={`p-4 rounded-xl ${
-            settings.darkMode 
-              ? 'bg-gray-800/50 border border-gray-700/50' 
-              : 'bg-white border border-gray-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Income
-            </span>
-            <DollarSign size={16} className="text-purple-500" />
-          </div>
-          <div className={`text-xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {formatCurrency(income)}
-          </div>
-        </motion.div>
-        
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className={`p-4 rounded-xl ${
-            settings.darkMode 
-              ? 'bg-gray-800/50 border border-gray-700/50' 
-              : 'bg-white border border-gray-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Expenses
-            </span>
-            <TrendingDown size={16} className="text-red-500" />
-          </div>
-          <div className={`text-xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {formatCurrency(totalExpenses)}
-          </div>
-        </motion.div>
-        
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className={`p-4 rounded-xl ${
-            settings.darkMode 
-              ? 'bg-gray-800/50 border border-gray-700/50' 
-              : 'bg-white border border-gray-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Savings
-            </span>
-            <Wallet size={16} className="text-green-500" />
-          </div>
-          <div className={`text-xl font-bold ${
-            savings >= 0 ? 'text-green-500' : 'text-red-500'
-          }`}>
-            {formatCurrency(savings)}
-          </div>
-        </motion.div>
-        
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className={`p-4 rounded-xl ${
-            settings.darkMode 
-              ? 'bg-gray-800/50 border border-gray-700/50' 
-              : 'bg-white border border-gray-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Savings Rate
-            </span>
-            <Info size={16} className="text-blue-500" />
-          </div>
-          <div className={`text-xl font-bold ${
-            savings >= 0 ? 'text-green-500' : 'text-red-500'
-          }`}>
-            {((savings / income) * 100).toFixed(1)}%
-          </div>
-        </motion.div>
+
+      {/* Glass summary cards */}
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { 
+            label: 'Income', 
+            value: income, 
+            icon: DollarSign, 
+            color: 'text-purple-300',
+            bgColor: 'rgba(139, 92, 246, 0.2)'
+          },
+          { 
+            label: 'Expenses', 
+            value: visualData.totalExpenses, 
+            icon: TrendingDown, 
+            color: 'text-red-300',
+            bgColor: 'rgba(239, 68, 68, 0.2)'
+          },
+          { 
+            label: visualData.isDeficit ? 'Deficit' : 'Savings', 
+            value: Math.abs(visualData.netFlow), 
+            icon: visualData.isDeficit ? AlertTriangle : Wallet, 
+            color: visualData.isDeficit ? 'text-red-300' : 'text-green-300',
+            bgColor: visualData.isDeficit ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'
+          },
+          { 
+            label: 'Rate', 
+            value: `${efficiencyRate}%`, 
+            icon: parseFloat(efficiencyRate) >= 0 ? TrendingUp : TrendingDown, 
+            color: parseFloat(efficiencyRate) >= 0 ? 'text-blue-300' : 'text-red-300',
+            bgColor: parseFloat(efficiencyRate) >= 0 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)'
+          }
+        ].map((item, index) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+            className="p-4 rounded-2xl backdrop-blur-xl border border-white/10 text-center"
+            style={{
+              background: `linear-gradient(135deg, ${item.bgColor} 0%, rgba(255,255,255,0.05) 100%)`,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)'
+            }}
+          >
+            <div className={`inline-flex items-center justify-center w-10 h-10 mb-3 rounded-xl ${item.color}`}
+                 style={{ background: 'rgba(255,255,255,0.1)' }}>
+              <item.icon size={20} />
+            </div>
+            <div className="text-sm text-white/60 mb-1 font-medium">
+              {item.label}
+            </div>
+            <div className="text-lg font-bold text-white">
+              {typeof item.value === 'number' ? formatCurrency(item.value) : item.value}
+            </div>
+          </motion.div>
+        ))}
       </div>
-      
-      {/* Info Box */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className={`mt-4 p-4 rounded-xl flex items-start gap-3 ${
-          settings.darkMode 
-            ? 'bg-blue-900/20 border border-blue-700/30' 
-            : 'bg-blue-50 border border-blue-200'
-        }`}
-      >
-        <Info size={18} className="text-blue-500 mt-0.5" />
-        <div>
-          <p className={`text-sm ${
-            settings.darkMode ? 'text-blue-300' : 'text-blue-700'
-          }`}>
-            This diagram shows how your income flows through different spending categories. 
-            The width of each connection represents the amount of money flowing through it.
-            Click on categories to see detailed breakdowns.
-          </p>
-        </div>
-      </motion.div>
+
+      {/* Subtle help text */}
+      <div className="mt-6 text-center">
+        <p className="text-xs text-white/40 font-medium">
+          Hover over categories to trace money flow • 
+          {!visualData.hasIncome && ' Expenses funded by debt or savings •'}
+          {visualData.isDeficit && ' Red indicates deficit spending •'}
+          Flows represent proportional amounts
+        </p>
+      </div>
     </div>
   );
 };

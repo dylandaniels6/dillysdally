@@ -81,11 +81,14 @@ export const ChartFilterDropdown: React.FC<ChartFilterDropdownProps> = ({
       {isOpen && (
         <div className={`absolute top-full left-0 mt-2 w-48 rounded-lg shadow-lg border z-50 ${
           darkMode 
-            ? 'bg-gray-800 border-gray-600' 
+            ? 'bg-gray-800 border-gray-700' 
             : 'bg-white border-gray-200'
         }`}>
-          <div className="p-3 space-y-2">
-            <label className="flex items-center space-x-3 cursor-pointer group">
+          <div className="p-2 space-y-1">
+            {/* Gym filter */}
+            <label className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer group transition-colors ${
+              darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+            }`}>
               <div className="relative">
                 <input
                   type="checkbox"
@@ -93,7 +96,7 @@ export const ChartFilterDropdown: React.FC<ChartFilterDropdownProps> = ({
                   onChange={(e) => handleFilterChange('gym', e.target.checked)}
                   className="sr-only"
                 />
-                <div className={`w-4 h-4 rounded border-2 transition-all duration-200 ${
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                   filters.gym
                     ? 'bg-blue-500 border-blue-500'
                     : darkMode
@@ -111,10 +114,13 @@ export const ChartFilterDropdown: React.FC<ChartFilterDropdownProps> = ({
                 Gym Climbs
               </span>
               <div className="flex-1" />
-              <div className="w-3 h-3 rounded bg-gradient-to-r from-blue-500 to-blue-400" />
+              <div className="w-3 h-3 rounded bg-gradient-to-r from-blue-400 to-blue-700" />
             </label>
 
-            <label className="flex items-center space-x-3 cursor-pointer group">
+            {/* Kilter filter */}
+            <label className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer group transition-colors ${
+              darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+            }`}>
               <div className="relative">
                 <input
                   type="checkbox"
@@ -122,7 +128,7 @@ export const ChartFilterDropdown: React.FC<ChartFilterDropdownProps> = ({
                   onChange={(e) => handleFilterChange('kilter', e.target.checked)}
                   className="sr-only"
                 />
-                <div className={`w-4 h-4 rounded border-2 transition-all duration-200 ${
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                   filters.kilter
                     ? 'bg-purple-500 border-purple-500'
                     : darkMode
@@ -140,7 +146,7 @@ export const ChartFilterDropdown: React.FC<ChartFilterDropdownProps> = ({
                 Kilter Climbs
               </span>
               <div className="flex-1" />
-              <div className="w-3 h-3 rounded bg-gradient-to-r from-purple-500 to-orange-500" />
+              <div className="w-3 h-3 rounded bg-gradient-to-r from-blue-800 to-purple-500" />
             </label>
           </div>
         </div>
@@ -149,30 +155,33 @@ export const ChartFilterDropdown: React.FC<ChartFilterDropdownProps> = ({
   );
 };
 
-// Chart Color Utilities
-export const getGymGradient = () => 'linear-gradient(to top, #3B82F6, #60A5FA)';
-export const getKilterGradient = () => 'linear-gradient(to top, #8B5CF6, #F97316)';
+// Chart Color Utilities - Seamless Blue-to-Purple Transition
+export const getGymGradient = () => 'linear-gradient(to top, #60A5FA, #1E40AF)'; // Light blue to dark blue
+export const getKilterGradient = () => 'linear-gradient(to top, #1E40AF 0%, #1E40AF 12%, #8B5CF6 100%)'; // Dark blue holds for 12%, then to purple
 
 export const getStackedGradient = (gymCount: number, kilterCount: number, maxCount: number) => {
   const total = gymCount + kilterCount;
   if (total === 0) return '#374151'; // Gray for empty bars
 
   const gymPercentage = (gymCount / total) * 100;
-  const kilterPercentage = (kilterCount / total) * 100;
-
+  
   if (gymCount > 0 && kilterCount > 0) {
-    // Stacked: gym on bottom (blue), kilter on top (purple-orange)
+    // Seamless transition: gym ends at dark blue, kilter holds dark blue for 12% then transitions to purple
+    const bridgeColor = '#1E40AF'; // Dark blue - the bridge between gym and kilter
+    const kilterStartPercentage = gymPercentage;
+    const kilterTransitionStart = gymPercentage + ((100 - gymPercentage) * 0.12); // 12% into kilter section
+    
     return `linear-gradient(to top, 
-      #3B82F6 0%, 
-      #60A5FA ${gymPercentage}%, 
-      #8B5CF6 ${gymPercentage}%, 
-      #F97316 100%)`;
+      #60A5FA 0%, 
+      ${bridgeColor} ${gymPercentage}%, 
+      ${bridgeColor} ${kilterTransitionStart}%,
+      #8B5CF6 100%)`;
   } else if (gymCount > 0) {
-    // Only gym
-    return 'linear-gradient(to top, #3B82F6, #60A5FA)';
+    // Only gym - light blue to dark blue
+    return 'linear-gradient(to top, #60A5FA, #1E40AF)';
   } else {
-    // Only kilter
-    return 'linear-gradient(to top, #8B5CF6, #F97316)';
+    // Only kilter - dark blue holds for 12%, then to purple
+    return 'linear-gradient(to top, #1E40AF 0%, #1E40AF 12%, #8B5CF6 100%)';
   }
 };
 

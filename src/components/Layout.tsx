@@ -8,7 +8,7 @@ import Journal from './views/Journal';
 import MonthlyExpenses from './views/MonthlyExpenses';
 import NetWorthTracker from './views/NetWorthTracker/NetWorthTracker';
 import Settings from './views/Settings';
-import ClimbingLog from './views/ClimbingLog';
+import ClimbingLog from './views/ClimbingLog/ClimbingLog';
 import StarryBackground from './views/Overview/StarryBackground';
 
 const Layout: React.FC = () => {
@@ -40,30 +40,30 @@ const Layout: React.FC = () => {
   };
   
   return (
-    <div className="min-h-screen relative">
-      {/* Global Starry Background - Always Present */}
-      <StarryBackground blur={false} />
+  <div className="fixed inset-0 overflow-hidden">
+    {/* Global Starry Background - Always Present */}
+    <StarryBackground blur={false} />
+    
+    {/* Main App Container */}
+    <div className="relative h-full">
+      {/* Header */}
+      <Header 
+        toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+        isTransparent={isOverviewPage}
+      />
       
-      {/* Main App Container */}
-      <div className="relative z-10 min-h-screen">
-        {/* Header - fully transparent on Overview */}
-        <Header 
-          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-          isTransparent={isOverviewPage}
-        />
-        
-        {/* Sidebar - positioned below header */}
-        <Sidebar isTransparent={true} />
-        
-        {/* Main content - adjusted for maximum sidebar width */}
-        <main className="ml-52 min-h-screen pt-16">
-          <div className={currentView === 'journal' ? 'px-8 pt-0 pb-6' : 'px-8 py-6'}>
-            {renderCurrentView()}
-          </div>
-        </main>
-      </div>
+      {/* Sidebar */}
+      <Sidebar isTransparent={true} />
+      
+      {/* Main content */}
+      <main className="ml-52 h-full pt-16">
+        <div className={`h-full overflow-y-auto ${currentView === 'journal' ? 'px-8 pt-0 pb-6' : 'px-8 py-6'}`}>
+          {renderCurrentView()}
+        </div>
+      </main>
     </div>
-  );
+  </div>
+);
 };
 
 export default Layout;

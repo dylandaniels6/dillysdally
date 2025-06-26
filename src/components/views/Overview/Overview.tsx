@@ -121,7 +121,7 @@ const Overview: React.FC = () => {
       <div className="relative z-10 h-full">
         {/* AI Chat - Always centered */}
         <div className="absolute inset-0 flex items-center justify-center px-4 py-16">
-          <div className={`w-full max-w-4xl h-full max-h-[calc(100vh-8rem)] transition-all duration-300 ${
+          <div className={`w-full max-w-3xl h-full max-h-[calc(100vh-8rem)] transition-all duration-300 ${
             !isSidebarCollapsed ? 'lg:ml-[-160px]' : ''
           }`}>
             <AIChat 

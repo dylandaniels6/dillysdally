@@ -180,7 +180,7 @@ Keep it conversational, warm, and under 200 words. Reference specific details to
 `;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
@@ -287,7 +287,7 @@ Keep it reflective and growth-oriented.
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
@@ -339,7 +339,7 @@ Be analytical yet personal.
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
@@ -395,7 +395,7 @@ The quote should be encouraging but not generic. Maximum 20 words.
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
