@@ -2,7 +2,8 @@ import React from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Moon, Sun, Save, Bell, Download, Trash, Shield, User, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import DataImport from '../common/DataImport';
-import { supabase } from '../../lib/supabase';
+import { createAuthenticatedSupabaseClient } from '../../lib/supabase';
+import { useAuth } from '@clerk/clerk-react';
 
 // Create inline Card components since we need to fix the import path
 interface CardProps {
@@ -111,12 +112,12 @@ const Settings: React.FC = () => {
     dataImports,
     isAuthenticated,
     user,
-    enableAuthentication,
-    anonymousUserId,
     cloudSyncStatus,
     lastSyncTime,
     forceSync
   } = useAppContext();
+
+  const { getToken } = useAuth();
 
   const updateSetting = (key: keyof typeof settings, value: boolean) => {
     setSettings({ ...settings, [key]: value });
@@ -131,7 +132,6 @@ const Settings: React.FC = () => {
       climbingSessions,
       dataImports,
       settings,
-      anonymousUserId,
       exportDate: new Date().toISOString()
     };
     
@@ -150,17 +150,21 @@ const Settings: React.FC = () => {
     if (!confirm('Are you sure you want to clear all data? This cannot be undone.')) return;
     
     try {
-      const userId = isAuthenticated ? user?.id : anonymousUserId;
-      
-      if (settings.cloudSync && userId) {
-        // Delete all user data from Supabase
+      if (settings.cloudSync && isAuthenticated) {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('No authentication token');
+        
+        const supabase = createAuthenticatedSupabaseClient(token);
+        
+        // Delete all user data from Supabase - RLS handles user filtering automatically
         await Promise.all([
-          supabase.from('journal_entries').delete().eq('user_id', userId),
-          supabase.from('expenses').delete().eq('user_id', userId),
-          supabase.from('net_worth_entries').delete().eq('user_id', userId),
-          supabase.from('habits').delete().eq('user_id', userId),
-          supabase.from('climbing_sessions').delete().eq('user_id', userId),
-          supabase.from('user_profiles').delete().eq('user_id', userId)
+          supabase.from('journal_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('net_worth_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('habits').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('climbing_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('user_profiles').delete().neq('user_id', '00000000-0000-0000-0000-000000000000')
         ]);
       }
       
@@ -174,7 +178,7 @@ const Settings: React.FC = () => {
         notifications: true,
         gyms: ['Crux Pflugerville', 'Crux Central', 'Mesa Rim', 'ABP - Westgate', 'ABP - Springdale'],
         categories: ['Food', 'Transportation', 'Entertainment', 'Shopping', 'Bills', 'Health'],
-        authenticationEnabled: false,
+        authenticationEnabled: true,
         cloudSync: true,
         autoBackup: true,
       });
@@ -183,12 +187,6 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error('Error clearing data:', error);
       alert('Failed to clear all data. Please try again.');
-    }
-  };
-
-  const handleEnableAuthentication = () => {
-    if (confirm('This will enable user accounts and cloud sync. Your current data will be preserved and synced to the cloud. Continue?')) {
-      enableAuthentication();
     }
   };
 
@@ -376,17 +374,17 @@ const Settings: React.FC = () => {
           <h4 className={`font-medium mb-2 ${
             settings.darkMode ? 'text-white' : 'text-gray-900'
           }`}>
-            Anonymous User ID
+            User ID
           </h4>
           <p className={`text-sm font-mono ${
             settings.darkMode ? 'text-gray-400' : 'text-gray-600'
           }`}>
-            {anonymousUserId}
+            {user?.id || 'Not authenticated'}
           </p>
           <p className={`text-xs mt-1 ${
             settings.darkMode ? 'text-gray-500' : 'text-gray-500'
           }`}>
-            This unique ID is used to sync your data across devices without requiring an account.
+            This unique ID is used to sync your data securely across devices.
           </p>
         </div>
       </Card>
@@ -399,67 +397,33 @@ const Settings: React.FC = () => {
           Account & Authentication
         </h3>
         
-        {!settings.authenticationEnabled ? (
-          <div className={`p-4 rounded-lg border-2 border-dashed ${
-            settings.darkMode ? 'border-gray-600' : 'border-gray-300'
+        <div className="space-y-4">
+          <div className={`p-4 rounded-lg ${
+            isAuthenticated 
+              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
+              : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
           }`}>
-            <div className="flex items-center space-x-3 mb-3">
-              <Shield size={24} className="text-blue-500" />
-              <div>
-                <h4 className={`font-medium ${
-                  settings.darkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                  Enable User Accounts (Optional)
-                </h4>
-                <p className={`text-sm ${
-                  settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
-                  Currently using anonymous cloud sync
-                </p>
-              </div>
-            </div>
-            <p className={`text-sm mb-4 ${
-              settings.darkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
-              Enable user accounts for enhanced security, multi-user support, and advanced features like AI reflections. Your current data will be preserved.
-            </p>
-            <button
-              onClick={handleEnableAuthentication}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <User size={16} />
-              <span>Enable Authentication</span>
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className={`p-4 rounded-lg ${
-              isAuthenticated 
-                ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
-                : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-            }`}>
-              <div className="flex items-center space-x-2">
-                <Shield size={18} className={isAuthenticated ? 'text-green-600' : 'text-yellow-600'} />
-                <span className={`font-medium ${
-                  isAuthenticated 
-                    ? 'text-green-800 dark:text-green-200' 
-                    : 'text-yellow-800 dark:text-yellow-200'
-                }`}>
-                  {isAuthenticated ? 'Signed In & Syncing' : 'Authentication Enabled'}
-                </span>
-              </div>
-              <p className={`text-sm mt-1 ${
+            <div className="flex items-center space-x-2">
+              <Shield size={18} className={isAuthenticated ? 'text-green-600' : 'text-yellow-600'} />
+              <span className={`font-medium ${
                 isAuthenticated 
-                  ? 'text-green-700 dark:text-green-300' 
-                  : 'text-yellow-700 dark:text-yellow-300'
+                  ? 'text-green-800 dark:text-green-200' 
+                  : 'text-yellow-800 dark:text-yellow-200'
               }`}>
-                {isAuthenticated 
-                  ? `Signed in as ${user?.email}. Data is automatically synced to the cloud.`
-                  : 'Authentication is enabled. Sign in from the header to sync your data.'}
-              </p>
+                {isAuthenticated ? 'Signed In & Syncing' : 'Authentication Required'}
+              </span>
             </div>
+            <p className={`text-sm mt-1 ${
+              isAuthenticated 
+                ? 'text-green-700 dark:text-green-300' 
+                : 'text-yellow-700 dark:text-yellow-300'
+            }`}>
+              {isAuthenticated 
+                ? `Signed in as ${user?.primaryEmailAddress?.emailAddress || user?.firstName || 'User'}. Data is automatically synced to the cloud.`
+                : 'Authentication is required to use this app. Please sign in to continue.'}
+            </p>
           </div>
-        )}
+        </div>
       </Card>
 
       {/* Data Import Section */}
@@ -595,11 +559,9 @@ const Settings: React.FC = () => {
           <p>Dylan's Hub v2.0.0</p>
           <p>A modern journaling and productivity tracking application</p>
           <p>Built with React, TypeScript, and Tailwind CSS</p>
+          <p>Powered by Clerk authentication and Supabase database</p>
           <p>
-            Data is automatically synced to the cloud with local backup for reliability
-          </p>
-          <p>
-            Anonymous cloud sync ensures your privacy while providing seamless data access
+            Data is securely synced to the cloud with local backup for reliability
           </p>
         </div>
       </Card>

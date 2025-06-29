@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, ChevronDown, ChevronUp, Mountain, DollarSign, CheckCircle2, Circle } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../../../context/AppContext';
 import { Card } from '../../common/Card';
 
 const YesterdayRecap: React.FC = () => {
-  const { journalEntries, habits, expenses, climbingSessions } = useAppContext();
+  const { getToken } = useAuth();
+  const { journalEntries, habits, expenses, climbingSessions, isAuthenticated } = useAppContext();
   const [isExpanded, setIsExpanded] = useState(false);
   
   // Get yesterday's date
@@ -43,6 +45,27 @@ const YesterdayRecap: React.FC = () => {
   const routesCompleted = yesterdayClimbing ? 
     yesterdayClimbing.routes.filter(route => route.completed).length : 
     0;
+
+  // Show authentication prompt if not signed in
+  if (!isAuthenticated) {
+    return (
+      <Card className="w-full" hover={false}>
+        <div className="text-center py-8">
+          <Calendar className="mx-auto mb-3 text-gray-600" size={32} />
+          <h3 className="text-lg font-semibold text-white mb-2">Yesterday's Recap</h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Sign in to see your yesterday's activities and progress
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+          >
+            Sign In
+          </button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full" hover={false}>
@@ -147,10 +170,10 @@ const YesterdayRecap: React.FC = () => {
                       <Circle size={14} className="text-white/30" />
                     )}
                     <span className={habit.progress >= habit.target ? 'text-white/70' : 'text-white/40'}>
-                      {habit.name}
+                      {habit.title}
                     </span>
                     <span className="text-xs text-gray-400 ml-auto">
-                      {habit.progress}/{habit.target} {habit.unit}
+                      {habit.progress}/{habit.target}
                     </span>
                   </div>
                 ))}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Edit3, Mountain, Calendar, ChevronRight } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../../context/AppContext';
 import { formatISODate, formatDate } from '../../utils/dateUtils';
 
@@ -21,7 +22,8 @@ interface CalendarSearchProps {
 }
 
 const CalendarSearch: React.FC<CalendarSearchProps> = ({ isOpen, onClose, onSelectDate }) => {
-  const { journalEntries, climbingSessions, settings } = useAppContext();
+  const { getToken } = useAuth();
+  const { journalEntries, climbingSessions, settings, isAuthenticated } = useAppContext();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -122,11 +124,18 @@ const CalendarSearch: React.FC<CalendarSearchProps> = ({ isOpen, onClose, onSele
     return score;
   };
 
-  // Perform search
+  // Perform search with authentication check
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
       setSelectedIndex(0);
+      return;
+    }
+
+    // Check if user is authenticated for search features
+    if (!isAuthenticated) {
+      // Could show a message about signing in for full search
+      setResults([]);
       return;
     }
 
@@ -183,7 +192,7 @@ const CalendarSearch: React.FC<CalendarSearchProps> = ({ isOpen, onClose, onSele
 
     setResults(sortedResults);
     setSelectedIndex(0);
-  }, [query, journalEntries, climbingSessions]);
+  }, [query, journalEntries, climbingSessions, isAuthenticated]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -285,10 +294,11 @@ const CalendarSearch: React.FC<CalendarSearchProps> = ({ isOpen, onClose, onSele
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search journal entries and climbing sessions..."
+              placeholder={isAuthenticated ? "Search journal entries and climbing sessions..." : "Sign in to search your data..."}
+              disabled={!isAuthenticated}
               className={`flex-1 py-4 pr-4 text-lg placeholder-gray-400 bg-transparent outline-none ${
                 settings.darkMode ? 'text-white' : 'text-gray-900'
-              }`}
+              } ${!isAuthenticated ? 'cursor-not-allowed opacity-50' : ''}`}
               autoComplete="off"
               spellCheck="false"
             />
@@ -306,8 +316,21 @@ const CalendarSearch: React.FC<CalendarSearchProps> = ({ isOpen, onClose, onSele
           </div>
         </div>
 
+        {/* Authentication Warning */}
+        {!isAuthenticated && (
+          <div className={`mb-4 p-4 rounded-2xl border ${
+            settings.darkMode 
+              ? 'bg-yellow-900/20 border-yellow-700/50 text-yellow-400' 
+              : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+          }`}>
+            <p className="text-sm font-medium text-center">
+              Please sign in to search your journal entries and climbing sessions
+            </p>
+          </div>
+        )}
+
         {/* Search Results */}
-        {query.trim() && (
+        {query.trim() && isAuthenticated && (
           <div 
             ref={resultsRef}
             className={`max-h-96 overflow-y-auto shadow-2xl rounded-2xl border ${
@@ -399,7 +422,7 @@ const CalendarSearch: React.FC<CalendarSearchProps> = ({ isOpen, onClose, onSele
         )}
 
         {/* Search Tips */}
-        {!query.trim() && (
+        {!query.trim() && isAuthenticated && (
           <div className={`mt-4 p-6 rounded-2xl border ${
             settings.darkMode 
               ? 'bg-gray-800/50 border-gray-700' 

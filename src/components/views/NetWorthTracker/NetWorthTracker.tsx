@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@clerk/clerk-react';
+import { createAuthenticatedSupabaseClient } from '../../../lib/supabase';
 import { 
   Plus, 
   TrendingUp, 
@@ -26,7 +28,8 @@ import { GlassCard } from './shared/GlassCard';
 import { motionVariants, staggerDelays } from './utils/animationPresets';
 
 const NetWorthTracker: React.FC = () => {
-  const { settings } = useAppContext();
+  const { getToken } = useAuth();
+  const { settings, isAuthenticated } = useAppContext();
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [currentView, setCurrentView] = useState<ViewMode>('overview');
 
@@ -56,47 +59,182 @@ const NetWorthTracker: React.FC = () => {
     triggerErrorAnimation 
   } = useNetWorthAnimations(summary, isLoading, hasError);
 
-  // Handle successful form submissions
+  // Handle successful form submissions with authentication
   const handleQuickAddSuccess = async (formData: any) => {
-    const success = await quickAddEntry(formData);
-    if (success) {
-      triggerSuccessAnimation();
-      setShowQuickAdd(false);
-    } else {
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      // Add the entry to database
+      const { data, error } = await supabase
+        .from('net_worth_entries')
+        .insert([{
+          date: formData.date,
+          cashEquivalents: formData.cashEquivalents || 0,
+          creditCards: formData.creditCards || 0,
+          assets: formData.assets || [],
+          notes: formData.notes || ''
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const success = await quickAddEntry(formData);
+      if (success) {
+        triggerSuccessAnimation();
+        setShowQuickAdd(false);
+      } else {
+        triggerErrorAnimation();
+      }
+      return success;
+    } catch (error) {
+      console.error('Error adding net worth entry:', error);
       triggerErrorAnimation();
+      return false;
     }
-    return success;
   };
 
-  // Handle asset operations
+  // Handle asset operations with authentication
   const handleAssetAdd = async (formData: any) => {
-    const success = await addAsset(formData);
-    if (success) {
-      triggerSuccessAnimation();
-    } else {
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      // You might want to store assets separately or as part of net worth entries
+      // This depends on your data structure - adjust as needed
+      
+      const success = await addAsset(formData);
+      if (success) {
+        triggerSuccessAnimation();
+      } else {
+        triggerErrorAnimation();
+      }
+      return success;
+    } catch (error) {
+      console.error('Error adding asset:', error);
       triggerErrorAnimation();
+      return false;
     }
-    return success;
   };
 
   const handleAssetUpdate = async (id: string, value: number) => {
-    const success = await updateAsset(id, value);
-    if (success) {
-      triggerSuccessAnimation();
-    } else {
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      // Update asset in database - adjust based on your schema
+      
+      const success = await updateAsset(id, value);
+      if (success) {
+        triggerSuccessAnimation();
+      } else {
+        triggerErrorAnimation();
+      }
+      return success;
+    } catch (error) {
+      console.error('Error updating asset:', error);
       triggerErrorAnimation();
+      return false;
     }
-    return success;
   };
 
   const handleAssetDelete = async (id: string) => {
-    const success = await deleteAsset(id);
-    if (success) {
-      triggerSuccessAnimation();
-    } else {
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      // Delete asset from database - adjust based on your schema
+      
+      const success = await deleteAsset(id);
+      if (success) {
+        triggerSuccessAnimation();
+      } else {
+        triggerErrorAnimation();
+      }
+      return success;
+    } catch (error) {
+      console.error('Error deleting asset:', error);
       triggerErrorAnimation();
+      return false;
     }
-    return success;
+  };
+
+  // Handle data export with authentication
+  const handleExportData = async () => {
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) {
+        alert('Please sign in to export data');
+        return;
+      }
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      // Fetch all net worth data
+      const { data, error } = await supabase
+        .from('net_worth_entries')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      
+      // Export data
+      const exportData = {
+        netWorthEntries: data,
+        summary: summary,
+        activeAssets: activeAssets,
+        exportDate: new Date().toISOString()
+      };
+      
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `networth-data-${new Date().toISOString().split('T')[0]}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Failed to export data. Please try again.');
+    }
+  };
+
+  // Handle data refresh with authentication
+  const handleRefreshData = async () => {
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) {
+        alert('Please sign in to refresh data');
+        return;
+      }
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      // Trigger a data refresh - you might want to call your data loading functions
+      window.location.reload();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      alert('Failed to refresh data. Please try again.');
+    }
   };
 
   // View navigation
@@ -184,9 +322,16 @@ const NetWorthTracker: React.FC = () => {
             Quick Add
           </PrimaryButton>
 
+          {/* Export Button */}
+          <SecondaryButton
+            onClick={handleExportData}
+            icon={<Download size={16} />}
+            isDarkMode={settings.darkMode}
+          />
+
           {/* Refresh Button */}
           <SecondaryButton
-            onClick={() => window.location.reload()}
+            onClick={handleRefreshData}
             icon={<RefreshCw size={16} />}
             isDarkMode={settings.darkMode}
             disabled={isLoading}
@@ -224,6 +369,23 @@ const NetWorthTracker: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Authentication Warning */}
+      {!isAuthenticated && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`p-4 rounded-xl border ${
+            settings.darkMode
+              ? 'bg-yellow-900/20 border-yellow-700/50 text-yellow-400'
+              : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+          }`}
+        >
+          <p className="text-sm font-medium">
+            Please sign in to access your net worth data and enable data syncing.
+          </p>
+        </motion.div>
+      )}
 
       {/* Main Content */}
       <AnimatePresence mode="wait">
@@ -357,13 +519,13 @@ const NetWorthTracker: React.FC = () => {
 
       {/* Quick Add Modal */}
       <QuickAddForm
-  isOpen={showQuickAdd}
-  onClose={() => setShowQuickAdd(false)}
-  onSubmit={handleQuickAddSuccess}
-  onAddAsset={handleAssetAdd}  // Add this line
-  isLoading={isLoading}
-  isDarkMode={settings.darkMode}
-/>
+        isOpen={showQuickAdd}
+        onClose={() => setShowQuickAdd(false)}
+        onSubmit={handleQuickAddSuccess}
+        onAddAsset={handleAssetAdd}
+        isLoading={isLoading}
+        isDarkMode={settings.darkMode}
+      />
     </motion.div>
   );
 };

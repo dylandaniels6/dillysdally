@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { createAuthenticatedSupabaseClient } from '../../lib/supabase';
+import { useAuth } from '@clerk/clerk-react';
 import { Maximize2, X, PenTool, ChefHat, Brain, Save, Sparkles, Loader, Check, Moon, Sun, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface HabitData {
@@ -55,6 +56,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
   isAuthenticated,
   saveEntry
 }) => {
+  const { getToken } = useAuth();
   const [isJournalExpanded, setIsJournalExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingMealAI, setIsGeneratingMealAI] = useState(false);
@@ -88,76 +90,81 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
   };
 
   const handleSaveEntry = async () => {
-  setIsSaving(true);
-  try {
-    await saveEntry();
-    
-    // Auto-generate REAL AI reflection after saving using journal-reflect
-    if (currentEntry.content && currentEntry.content.trim().length > 10) {
-      try {
-        await getAIReflection(); // This calls the real journal-reflect function
-      } catch (error) {
-        console.error('Error getting AI reflection:', error);
-        // Fallback to simple message if AI fails
-        updateEntry({ 
-          ai_reflection: "AI reflection temporarily unavailable. Your journal entry has been saved successfully.",
-          context_data: {
-            ...currentEntry.context_data,
-            analyzed_at: new Date().toISOString(),
-          }
-        });
-      }
-    }
-
-   // Generate meal AI reflection if meals exist
-if (currentEntry.meals && currentEntry.meals.trim().length > 10) {
-  setIsGeneratingMealAI(true);
-  try {
-    const { data, error } = await supabase.functions.invoke('meal-analyze', {
-      body: {
-        meals: currentEntry.meals,
-        habits: currentEntry.habitData,
-        mood: currentEntry.mood,
-        date: currentEntry.date,
-        context: {
-          sleepData: currentEntry.sleepData,
-          dayRating: currentEntry.dayRating,
-          miles: currentEntry.miles
+    setIsSaving(true);
+    try {
+      await saveEntry();
+      
+      // Auto-generate REAL AI reflection after saving using journal-reflect
+      if (currentEntry.content && currentEntry.content.trim().length > 10) {
+        try {
+          await getAIReflection(); // This calls the real journal-reflect function
+        } catch (error) {
+          console.error('Error getting AI reflection:', error);
+          // Fallback to simple message if AI fails
+          updateEntry({ 
+            ai_reflection: "AI reflection temporarily unavailable. Your journal entry has been saved successfully.",
+            context_data: {
+              ...currentEntry.context_data,
+              analyzed_at: new Date().toISOString(),
+            }
+          });
         }
       }
-    });
 
-    if (error) {
-      throw new Error(error.message || 'Failed to get meal analysis');
+      // Generate meal AI reflection if meals exist
+      if (currentEntry.meals && currentEntry.meals.trim().length > 10) {
+        setIsGeneratingMealAI(true);
+        try {
+          const token = await getToken({ template: 'supabase' });
+          if (!token) throw new Error('No authentication token');
+          
+          const supabase = createAuthenticatedSupabaseClient(token);
+
+          const { data, error } = await supabase.functions.invoke('meal-analyze', {
+            body: {
+              meals: currentEntry.meals,
+              habits: currentEntry.habitData,
+              mood: currentEntry.mood,
+              date: currentEntry.date,
+              context: {
+                sleepData: currentEntry.sleepData,
+                dayRating: currentEntry.dayRating,
+                miles: currentEntry.miles
+              }
+            }
+          });
+
+          if (error) {
+            throw new Error(error.message || 'Failed to get meal analysis');
+          }
+
+          const analysis = data?.analysis;
+          if (analysis) {
+            updateEntry({ meal_ai_reflection: analysis });
+          }
+        } catch (error) {
+          console.error('Error getting meal analysis:', error);
+          // Fallback to default message
+          updateEntry({ 
+            meal_ai_reflection: "Based on your nutrition log, you've maintained a balanced approach to eating today. Consider incorporating more leafy greens and ensuring adequate hydration throughout the day for optimal energy levels."
+          });
+        } finally {
+          setIsGeneratingMealAI(false);
+        }
+      }
+
+      // Show saved state but don't collapse
+      setShowSavedState(true);
+      setTimeout(() => {
+        setShowSavedState(false);
+      }, 5200);
+
+    } catch (error) {
+      console.error('Error saving entry:', error);
+    } finally {
+      setIsSaving(false);
     }
-
-    const analysis = data?.analysis;
-    if (analysis) {
-      updateEntry({ meal_ai_reflection: analysis });
-    }
-  } catch (error) {
-    console.error('Error getting meal analysis:', error);
-    // Fallback to default message
-    updateEntry({ 
-      meal_ai_reflection: "Based on your nutrition log, you've maintained a balanced approach to eating today. Consider incorporating more leafy greens and ensuring adequate hydration throughout the day for optimal energy levels."
-    });
-  } finally {
-    setIsGeneratingMealAI(false);
-  }
-}
-
-    // Show saved state but don't collapse
-setShowSavedState(true);
-setTimeout(() => {
-  setShowSavedState(false);
-}, 5200);
-
-  } catch (error) {
-    console.error('Error saving entry:', error);
-  } finally {
-    setIsSaving(false);
-  }
-};
+  };
 
   // Collapsed state - just add professional styling to existing structure
   if (!isExpanded) {
@@ -239,39 +246,39 @@ setTimeout(() => {
             </div>
 
             {/* Journal AI Reflection Box */}
-<div className="p-4 rounded-2xl border bg-purple-500/10 border-purple-500/20 backdrop-blur-sm min-h-[100px]">
-  <div className="flex items-center gap-2 mb-3">
-    <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
-      {isLoadingAI ? (
-        <Loader size={16} className="text-white animate-spin" />
-      ) : (
-        <Brain size={16} className="text-white" />
-      )}
-    </div>
-    <h4 className="font-bold text-purple-300">
-      AI Journal Reflection
-    </h4>
-  </div>
-  {currentEntry.ai_reflection ? (
-    <div className="relative">
-      <p className="text-sm line-clamp-3 text-white/80">
-        {currentEntry.ai_reflection}
-      </p>
-      {currentEntry.ai_reflection.length > 200 && (
-        <button
-          onClick={() => setIsAIReflectionExpanded(true)}
-          className="text-sm font-medium mt-2 text-purple-400 hover:text-purple-300 transition-colors"
-        >
-          Read more...
-        </button>
-      )}
-    </div>
-  ) : (
-    <p className="text-sm italic text-white/40">
-      AI reflection will appear here after saving your entry...
-    </p>
-  )}
-</div>
+            <div className="p-4 rounded-2xl border bg-purple-500/10 border-purple-500/20 backdrop-blur-sm min-h-[100px]">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+                  {isLoadingAI ? (
+                    <Loader size={16} className="text-white animate-spin" />
+                  ) : (
+                    <Brain size={16} className="text-white" />
+                  )}
+                </div>
+                <h4 className="font-bold text-purple-300">
+                  AI Journal Reflection
+                </h4>
+              </div>
+              {currentEntry.ai_reflection ? (
+                <div className="relative">
+                  <p className="text-sm line-clamp-3 text-white/80">
+                    {currentEntry.ai_reflection}
+                  </p>
+                  {currentEntry.ai_reflection.length > 200 && (
+                    <button
+                      onClick={() => setIsAIReflectionExpanded(true)}
+                      className="text-sm font-medium mt-2 text-purple-400 hover:text-purple-300 transition-colors"
+                    >
+                      Read more...
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm italic text-white/40">
+                  AI reflection will appear here after saving your entry...
+                </p>
+              )}
+            </div>
 
             {/* Meals Section */}
             <div className="space-y-3">
@@ -322,7 +329,7 @@ setTimeout(() => {
             </div>
           </div>
 
-          {/* Right Side - Sleep & Metrics (1 column) - YOUR EXACT ORIGINAL CODE */}
+          {/* Right Side - Sleep & Metrics (1 column) */}
           <div className="space-y-6">
             
             {/* Sleep Tracking - Apple Design Language */}
@@ -742,46 +749,46 @@ setTimeout(() => {
         </div>
       </div>
       
-{/* AI Reflection Expanded Modal */}
-{isAIReflectionExpanded && (
-  <div 
-    className="fixed inset-0 z-50 flex items-center justify-center p-4"
-    style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-  >
-    <div 
-      className="absolute inset-0"
-      onClick={() => setIsAIReflectionExpanded(false)}
-    />
-    
-    <div className="relative w-full max-w-2xl max-h-[80vh] bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-purple-500/20 overflow-hidden">
-      
-      <div className="p-6 border-b border-white/10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
-              <Brain size={16} className="text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-white">
-              AI Journal Reflection
-            </h2>
-          </div>
-          <button
+      {/* AI Reflection Expanded Modal */}
+      {isAIReflectionExpanded && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        >
+          <div 
+            className="absolute inset-0"
             onClick={() => setIsAIReflectionExpanded(false)}
-            className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white transition-colors"
-          >
-            <X size={24} />
-          </button>
+          />
+          
+          <div className="relative w-full max-w-2xl max-h-[80vh] bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-purple-500/20 overflow-hidden">
+            
+            <div className="p-6 border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+                    <Brain size={16} className="text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-white">
+                    AI Journal Reflection
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsAIReflectionExpanded(false)}
+                  className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <p className="text-base leading-relaxed whitespace-pre-line text-white/80">
+                {currentEntry.ai_reflection}
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
-      
-      <div className="p-6 overflow-y-auto max-h-[60vh]">
-        <p className="text-base leading-relaxed whitespace-pre-line text-white/80">
-          {currentEntry.ai_reflection}
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* Expanded Journal Modal */}
       {isJournalExpanded && (

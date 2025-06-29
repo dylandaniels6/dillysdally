@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../../context/AppContext';
 import { Minus, Plus, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { ClimbingSession, ClimbingRoute } from '../../../types';
-import { supabase } from '../../../lib/supabase';
+import { createAuthenticatedSupabaseClient } from '../../../lib/supabase';
+import { useAuth } from '@clerk/clerk-react';
 import { SessionPreviewChart } from './ChartEnhancements';
 import FullScreenNotesModal from './FullScreenNotesModal';
 import { formatDate } from '../../../utils/dateUtils';
@@ -26,6 +27,7 @@ const SessionForm: React.FC<SessionFormProps> = ({
   isToday
 }) => {
   const { climbingSessions, setClimbingSessions, settings, user, isAuthenticated } = useAppContext();
+  const { getToken } = useAuth();
   
   // Collapsible form state
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -188,6 +190,11 @@ const SessionForm: React.FC<SessionFormProps> = ({
     }
 
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+
       // Convert both gym and kilter climb counts to array of ClimbingRoute
       const routes: ClimbingRoute[] = [];
       
@@ -232,7 +239,7 @@ const SessionForm: React.FC<SessionFormProps> = ({
         duration: sessionDuration,
         notes: sessionJournal,
         routes,
-        user_id: isAuthenticated ? user?.id : null,
+        user_id: user?.id
       };
 
       let result;

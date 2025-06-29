@@ -3,10 +3,12 @@ import { useAppContext } from '../../context/AppContext';
 import { Plus, Calendar, Edit, Trash, Smile, Frown, Meh, Loader } from 'lucide-react';
 import { JournalEntry } from '../../types';
 import { formatISODate, formatDate } from '../../utils/dateUtils';
-import { supabase } from '../../lib/supabase';
+import { createAuthenticatedSupabaseClient } from '../../lib/supabase';
+import { useAuth } from '@clerk/clerk-react';
 
 const Journal: React.FC = () => {
   const { journalEntries, setJournalEntries, selectedDate, habits } = useAppContext();
+  const { getToken } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<JournalEntry | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,6 +42,11 @@ const Journal: React.FC = () => {
   
   const deleteEntry = async (id: string) => {
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+
       const { error } = await supabase
         .from('journal_entries')
         .delete()
@@ -54,47 +61,52 @@ const Journal: React.FC = () => {
     }
   };
   
-const getAIReflection = async () => {
-  if (!currentEntry || !currentEntry.content.trim()) {
-    alert('Please write some content before getting a reflection');
-    return;
-  }
-
-  setIsLoading(true);
-  try {
-    const { data, error } = await supabase.functions.invoke('journal-reflect', {
-      body: {
-        entry: currentEntry.content,
-        habits: habits,
-        mood: currentEntry.mood,
-        date: currentEntry.date
-      }
-    });
-
-    if (error) {
-      throw new Error(error.message || 'Failed to get AI reflection');
+  const getAIReflection = async () => {
+    if (!currentEntry || !currentEntry.content.trim()) {
+      alert('Please write some content before getting a reflection');
+      return;
     }
 
-    const reflection = data?.analysis || data?.reflection || data?.response || data?.text;
+    setIsLoading(true);
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
 
-    if (reflection) {
-      setCurrentEntry(prev => prev ? {
-        ...prev,
-        ai_reflection: reflection,
-        context_data: {
-          analyzed_at: new Date().toISOString(),
-          mood: prev.mood,
-          date: prev.date
+      const { data, error } = await supabase.functions.invoke('journal-reflect', {
+        body: {
+          entry: currentEntry.content,
+          habits: habits,
+          mood: currentEntry.mood,
+          date: currentEntry.date
         }
-      } : null);
-    } else {
-      throw new Error('No reflection received from the API');
-    }
-  } catch (error: any) {
-    console.error('Error getting reflection:', error);
-    alert(`Failed to get AI reflection: ${error.message}`);
-  } finally {
-    setIsLoading(false);
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to get AI reflection');
+      }
+
+      const reflection = data?.analysis || data?.reflection || data?.response || data?.text;
+
+      if (reflection) {
+        setCurrentEntry(prev => prev ? {
+          ...prev,
+          ai_reflection: reflection,
+          context_data: {
+            analyzed_at: new Date().toISOString(),
+            mood: prev.mood,
+            date: prev.date
+          }
+        } : null);
+      } else {
+        throw new Error('No reflection received from the API');
+      }
+    } catch (error: any) {
+      console.error('Error getting reflection:', error);
+      alert(`Failed to get AI reflection: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -104,6 +116,11 @@ const getAIReflection = async () => {
     if (!currentEntry) return;
 
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+
       const entryData = {
         date: currentEntry.date,
         title: currentEntry.title,
@@ -111,7 +128,8 @@ const getAIReflection = async () => {
         mood: currentEntry.mood,
         tags: currentEntry.tags,
         ai_reflection: currentEntry.ai_reflection,
-        context_data: currentEntry.context_data
+        context_data: currentEntry.context_data,
+        user_id: currentEntry.user_id // This will be set by RLS
       };
 
       if (currentEntry.id) {

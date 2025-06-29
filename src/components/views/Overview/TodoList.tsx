@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { Plus, Check, X, GripVertical, CheckSquare } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
+import { createAuthenticatedSupabaseClient } from '../../../lib/supabase';
 import { Card } from '../../common/Card';
-import { supabase } from '../../../lib/supabase';
 
 interface Task {
   id: string;
@@ -14,6 +15,7 @@ interface Task {
 }
 
 const TodoList: React.FC = () => {
+  const { getToken } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskText, setNewTaskText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -25,6 +27,11 @@ const TodoList: React.FC = () => {
 
   const loadTasks = async () => {
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -71,6 +78,11 @@ const TodoList: React.FC = () => {
     };
 
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
       const { data, error } = await supabase
         .from('tasks')
         .insert([newTask])
@@ -97,6 +109,11 @@ const TodoList: React.FC = () => {
     };
 
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
       const { error } = await supabase
         .from('tasks')
         .update({ 
@@ -115,6 +132,11 @@ const TodoList: React.FC = () => {
 
   const deleteTask = async (taskId: string) => {
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
       const { error } = await supabase
         .from('tasks')
         .delete()
@@ -133,6 +155,11 @@ const TodoList: React.FC = () => {
 
     // Update priorities in database
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
       const updates = newOrder.map((task, index) => ({
         id: task.id,
         priority: index

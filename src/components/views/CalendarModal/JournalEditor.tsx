@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, Smile } from 'lucide-react';
+import { X, Save, Smile, AlertCircle } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../../../context/AppContext';
+import { createAuthenticatedSupabaseClient } from '../../../lib/supabase';
 import { getMoodEmoji } from './utils';
 
 interface JournalEditorProps {
@@ -11,33 +13,72 @@ interface JournalEditorProps {
 }
 
 const JournalEditor: React.FC<JournalEditorProps> = ({ entry, onClose, settings }) => {
+  const { getToken } = useAuth();
   const { journalEntries, setJournalEntries } = useAppContext();
   const [content, setContent] = useState(entry.content);
   const [mood, setMood] = useState(entry.mood || 'neutral');
-  const [gratitude, setGratitude] = useState(entry.gratitude || '');
+  const [gratitude, setGratitude] = useState(entry.context_data?.gratitude || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
     setIsSaving(true);
+    setError(null);
     
-    const updatedEntry = {
-      ...entry,
-      content,
-      mood,
-      gratitude
-    };
-    
-    const updatedEntries = journalEntries.map(e => 
-      e.id === entry.id ? updatedEntry : e
-    );
-    
-    setJournalEntries(updatedEntries);
-    
-    // Simulate save delay
-    setTimeout(() => {
+    try {
+      // Get authentication token
+      const token = await getToken({ template: 'supabase' });
+      if (!token) {
+        throw new Error('Authentication required. Please sign in to save changes.');
+      }
+
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      const updatedEntry = {
+        ...entry,
+        content,
+        mood,
+        context_data: {
+          ...entry.context_data,
+          gratitude: gratitude || null
+        }
+      };
+      
+      // Save to database - store everything in context_data
+      const { error: dbError } = await supabase
+        .from('journal_entries')
+        .update({
+          context_data: {
+            ...entry.context_data,
+            content: content,
+            mood: mood,
+            gratitude: gratitude || null
+          }
+        })
+        .eq('id', entry.id);
+
+      if (dbError) {
+        throw new Error(`Failed to save changes: ${dbError.message}`);
+      }
+
+      // Update local state only after successful database save
+      const updatedEntries = journalEntries.map(e => 
+        e.id === entry.id ? updatedEntry : e
+      );
+      
+      setJournalEntries(updatedEntries);
+      
+      // Simulate save delay
+      setTimeout(() => {
+        setIsSaving(false);
+        onClose();
+      }, 300);
+
+    } catch (error) {
+      console.error('Error saving journal entry:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save changes. Please try again.');
       setIsSaving(false);
-      onClose();
-    }, 300);
+    }
   };
 
   const moods = [
@@ -95,6 +136,22 @@ const JournalEditor: React.FC<JournalEditorProps> = ({ entry, onClose, settings 
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* Error Message */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-4 rounded-xl border flex items-center gap-3 ${
+                settings.darkMode 
+                  ? 'bg-red-900/20 border-red-700 text-red-400' 
+                  : 'bg-red-50 border-red-200 text-red-700'
+              }`}
+            >
+              <AlertCircle size={20} />
+              <span className="text-sm">{error}</span>
+            </motion.div>
+          )}
+
           {/* Mood Selector */}
           <div>
             <label className={`block text-sm font-medium mb-3 ${

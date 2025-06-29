@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, User, LogOut, Cloud, CloudOff, RefreshCw, Settings, Home } from 'lucide-react';
+import { UserButton, useUser } from '@clerk/clerk-react';
 import { useAppContext } from '../../context/AppContext';
 import CalendarModal from '../views/CalendarModal';
-import AuthModal from '../auth/AuthModal';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -15,18 +15,16 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
     settings, 
     setSettings, 
     selectedDate, 
-    user, 
-    isAuthenticated, 
-    signOut,
     cloudSyncStatus,
     lastSyncTime,
     forceSync,
     setCurrentView
   } = useAppContext();
   
+  // Clerk user hook
+  const { user, isLoaded } = useUser();
+  
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -48,15 +46,6 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      setShowUserMenu(false);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
 
   const getSyncIcon = () => {
     switch (cloudSyncStatus) {
@@ -231,110 +220,28 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-gray-500/20 to-gray-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
               </button>
 
-              {/* Authentication Section */}
-              {settings.authenticationEnabled && (
-                <>
-                  {isAuthenticated ? (
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowUserMenu(!showUserMenu)}
-                        className="group flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-105 hover:-translate-y-0.5 text-white/80 hover:text-white hover:bg-white/10 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent"
-                        aria-label="User menu"
-                      >
-                        {/* Avatar with gradient border */}
-                        <div className="relative">
-                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${
-                            settings.darkMode 
-                              ? 'bg-gradient-to-br from-gray-700 to-gray-800 shadow-xl shadow-gray-900/50' 
-                              : 'bg-gradient-to-br from-gray-100 to-gray-200 shadow-xl shadow-gray-500/25'
-                          }`}>
-                            <User size={18} />
-                          </div>
-                          {/* Online indicator */}
-                          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900 shadow-lg"></div>
-                        </div>
-                        
-                        {/* User email with subtle animation */}
-                        <div className="hidden sm:block text-left">
-                          <p className="text-sm font-medium leading-none">{user?.email?.split('@')[0]}</p>
-                          <p className="text-xs mt-1 text-white/60">
-                            Online
-                          </p>
-                        </div>
-                        
-                        {/* Chevron with smooth rotation */}
-                        <div className={`w-5 h-5 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`}>
-                          <div className="w-full h-full border-l-2 border-b-2 border-current transform rotate-45 scale-50"></div>
-                        </div>
-                      </button>
-
-                      {/* Enhanced User Dropdown with glass morphism */}
-                      {showUserMenu && (
-                        <div className={`absolute right-0 mt-4 w-80 rounded-3xl shadow-2xl border backdrop-blur-2xl ${
-                          settings.darkMode 
-                            ? 'bg-gray-900/90 border-gray-700/50 shadow-black/50' 
-                            : 'bg-white/90 border-gray-200/50 shadow-gray-500/25'
-                        } style={{ zIndex: 10000 }} transform animate-in slide-in-from-top-2 duration-300`}>
-                          
-                          {/* Header */}
-                          <div className="p-6 border-b border-gray-200/20">
-                            <div className="flex items-center space-x-4">
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                                settings.darkMode 
-                                  ? 'bg-gradient-to-br from-blue-600 to-purple-600' 
-                                  : 'bg-gradient-to-br from-blue-500 to-purple-500'
-                              } shadow-xl`}>
-                                <User size={20} className="text-white" />
-                              </div>
-                              <div>
-                                <p className={`text-lg font-semibold ${
-                                  settings.darkMode ? 'text-white' : 'text-gray-900'
-                                }`}>
-                                  {user?.email}
-                                </p>
-                                <p className={`text-sm ${
-                                  settings.darkMode ? 'text-gray-400' : 'text-gray-600'
-                                }`}>
-                                  Premium Member
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Menu Items */}
-                          <div className="p-3">
-                            <button
-                              onClick={handleSignOut}
-                              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-105 ${
-                                settings.darkMode 
-                                  ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10 backdrop-blur-xl' 
-                                  : 'text-red-600 hover:text-red-700 hover:bg-red-50/50 backdrop-blur-xl'
-                              }`}
-                            >
-                              <LogOut size={18} />
-                              <span className="font-medium">Sign Out</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowAuthModal(true)}
-                      className={`group flex items-center space-x-3 px-6 py-3 rounded-2xl transition-all duration-300 ease-out transform hover:scale-105 hover:-translate-y-0.5 ${
-                        settings.darkMode 
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-xl shadow-blue-500/25' 
-                          : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-xl shadow-blue-500/25'
-                      } focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent`}
-                    >
-                      <User size={18} />
-                      <span className="hidden sm:inline font-medium">Sign In</span>
-                      
-                      {/* Button glow effect */}
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-600/50 to-purple-600/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
-                    </button>
-                  )}
-                </>
+              {/* Clerk User Button - Replaces all the custom auth logic */}
+              {isLoaded && user && (
+                <div className="relative">
+                  <UserButton 
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-12 h-12 rounded-2xl shadow-xl transition-all duration-300 hover:scale-110 hover:-translate-y-0.5",
+                        userButtonPopoverCard: "bg-gray-900/90 backdrop-blur-2xl border-gray-700/50 rounded-3xl shadow-2xl",
+                        userButtonPopoverActions: "text-white",
+                        userButtonPopoverActionButton: "text-white hover:bg-white/10 rounded-2xl transition-all duration-300",
+                        userButtonPopoverActionButtonText: "text-white",
+                        userButtonPopoverFooter: "hidden" // Hide Clerk branding if desired
+                      }
+                    }}
+                    userProfileMode="navigation"
+                    userProfileUrl="/user-profile"
+                    afterSignOutUrl="/"
+                  />
+                  
+                  {/* Online indicator */}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-lg"></div>
+                </div>
               )}
             </div>
           </div>
@@ -348,24 +255,6 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, isTransparent = false })
           onClose={() => setIsCalendarOpen(false)} 
         />,
         document.body
-      )}
-
-      {/* Auth Modal - Portaled to body */}
-      {settings.authenticationEnabled && showAuthModal && createPortal(
-        <AuthModal 
-          isOpen={showAuthModal} 
-          onClose={() => setShowAuthModal(false)} 
-        />,
-        document.body
-      )}
-
-      {/* Click outside to close user menu */}
-      {showUserMenu && (
-        <div 
-          className="fixed inset-0" 
-          style={{ zIndex: 9995 }} 
-          onClick={() => setShowUserMenu(false)}
-        />
       )}
     </>
   );

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../../context/AppContext';
 import { ClimbingSession } from '../../../types';
-import { supabase } from '../../../lib/supabase';
+import { createAuthenticatedSupabaseClient } from '../../../lib/supabase';
+import { useAuth } from '@clerk/clerk-react';
 import ClimbingProgress from './ClimbingProgress';
 import SessionForm from './SessionForm';
 import RecentSessions from './RecentSessions';
@@ -16,6 +17,7 @@ interface ClimbTypeFilters {
 
 const ClimbingLog: React.FC = () => {
   const { climbingSessions, setClimbingSessions, selectedDate, settings } = useAppContext();
+  const { getToken } = useAuth();
   
   // Add shared time range state for the chart and progress
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('month');
@@ -56,6 +58,11 @@ const ClimbingLog: React.FC = () => {
   
   const deleteSession = async (sessionId: string) => {
     try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+
       const { error } = await supabase
         .from('climbing_sessions')
         .delete()
@@ -67,6 +74,7 @@ const ClimbingLog: React.FC = () => {
       setClimbingSessions(prev => prev.filter(session => session.id !== sessionId));
     } catch (err) {
       console.error('Failed to delete session:', err);
+      alert('Failed to delete session. Please try again.');
     }
   };
 

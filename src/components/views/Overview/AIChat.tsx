@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Clock } from 'lucide-react';
+import { Send, Clock, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@clerk/clerk-react';
+import { createAuthenticatedSupabaseClient } from '../../../lib/supabase';
 import { sendChatMessage } from './utils/aiService';
 import { useAppContext } from '../../../context/AppContext';
 
@@ -10,6 +12,14 @@ interface Message {
   role: 'user' | 'assistant';
   timestamp: Date;
   isTyping?: boolean;
+}
+
+interface ChatSession {
+  id: string;
+  date: string;
+  messages: Message[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface AIChatProps {
@@ -33,35 +43,31 @@ const ChatGPTTyping: React.FC<{
     if (currentIndex < text.length) {
       const char = text[currentIndex];
       
-      // Base delay calculation - let's make this super clear
-      let delay = 1000 / speed; // Should be ~15ms for 65 chars/second
+      // Base delay calculation
+      let delay = 1000 / speed;
       
-      console.log(`Speed: ${speed}, Base delay: ${delay}ms, Char: "${char}"`); // Debug log
-      
-      // Much lighter pauses to maintain speed
+      // Adjust delays for natural pauses
       if (char === '.' || char === '!' || char === '?') {
-        delay *= 1.8; // Lighter pause after sentences
+        delay *= 1.8;
       } else if (char === ',' || char === ';' || char === ':') {
-        delay *= 1.3; // Light pause after clauses
+        delay *= 1.3;
       } else if (char === '\n') {
-        delay *= 1.5; // Light pause at line breaks
+        delay *= 1.5;
       } else if (char === ' ' && currentIndex > 0) {
         const prevChar = text[currentIndex - 1];
         if (prevChar === '.' || prevChar === '!' || prevChar === '?') {
-          delay *= 1.2; // Very light extra pause
+          delay *= 1.2;
         }
       }
       
-      // Smaller random variations (±10%)
+      // Small random variations
       delay *= 0.9 + Math.random() * 0.2;
-      
-      console.log(`Final delay: ${delay}ms`); // Debug log
 
       const timeout = setTimeout(() => {
         const newText = displayedText + char;
         setDisplayedText(newText);
         setCurrentIndex(prev => prev + 1);
-        onTextChange?.(newText); // Notify parent of text change
+        onTextChange?.(newText);
       }, delay);
 
       return () => clearTimeout(timeout);
@@ -79,55 +85,145 @@ const AIChat: React.FC<AIChatProps> = ({
   onFocusChange,
   onHistoryClick 
 }) => {
+  const { getToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
   const [isDailyRecapTyping, setIsDailyRecapTyping] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const { journalEntries, expenses, climbingSessions, habits } = useAppContext();
+  const { journalEntries, expenses, climbingSessions, habits, isAuthenticated } = useAppContext();
+
+  // Initialize session
+  useEffect(() => {
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentSessionId(sessionId);
+  }, []);
 
   // Load chat history and check if user has sent messages before
   useEffect(() => {
-    const savedMessages = localStorage.getItem('chatMessages');
-    const today = new Date().toDateString();
-    const hasSeenTodaysRecap = localStorage.getItem('hasSeenTodaysRecap') === today;
-    
-    if (savedMessages) {
-      try {
-        const parsedMessages = JSON.parse(savedMessages);
-        setMessages(parsedMessages);
-        // Check if user has sent any messages
-        const userHasSent = parsedMessages.some((msg: Message) => msg.role === 'user');
-        setHasUserSentMessage(userHasSent);
-      } catch (error) {
-        console.error('Error loading chat history:', error);
+    const loadChatHistory = async () => {
+      if (!isAuthenticated) {
+        handleOfflineMode();
+        return;
       }
-    } else if (dailyRecap && !isLoading) {
-      // Only start typing if user hasn't seen today's recap
-      if (!hasSeenTodaysRecap) {
-        setIsDailyRecapTyping(true);
-      } else {
-        // Set initial daily recap message static
-        const initialMessage = {
-          id: '1',
-          content: dailyRecap,
-          role: 'assistant' as const,
-          timestamp: new Date()
-        };
-        setMessages([initialMessage]);
-        localStorage.setItem('chatMessages', JSON.stringify([initialMessage]));
-      }
-    }
-  }, [dailyRecap, isLoading]);
 
-  // Save messages to localStorage
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) {
+          handleOfflineMode();
+          return;
+        }
+        
+        const supabase = createAuthenticatedSupabaseClient(token);
+        
+        // Try to get today's chat session
+        const today = new Date().toISOString().split('T')[0];
+        const { data, error } = await supabase
+          .from('chat_sessions')
+          .select('*')
+          .eq('date', today)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+          console.error('Error loading chat session:', error);
+          handleOfflineMode();
+          return;
+        }
+
+        if (data) {
+          // Load existing session
+          const parsedMessages = typeof data.messages === 'string' 
+            ? JSON.parse(data.messages) 
+            : data.messages;
+          
+          setMessages(parsedMessages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          })));
+          setCurrentSessionId(data.id);
+          setHasUserSentMessage(parsedMessages.some((msg: any) => msg.role === 'user'));
+        } else {
+          // No existing session, check if we should show daily recap
+          const hasSeenTodaysRecap = localStorage.getItem('hasSeenTodaysRecap') === today;
+          if (dailyRecap && !isLoading && !hasSeenTodaysRecap) {
+            setIsDailyRecapTyping(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading authenticated chat history:', error);
+        handleOfflineMode();
+      }
+    };
+
+    const handleOfflineMode = () => {
+      const savedMessages = localStorage.getItem('chatMessages');
+      const today = new Date().toDateString();
+      const hasSeenTodaysRecap = localStorage.getItem('hasSeenTodaysRecap') === today;
+      
+      if (savedMessages) {
+        try {
+          const parsedMessages = JSON.parse(savedMessages);
+          setMessages(parsedMessages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          })));
+          const userHasSent = parsedMessages.some((msg: Message) => msg.role === 'user');
+          setHasUserSentMessage(userHasSent);
+        } catch (error) {
+          console.error('Error loading chat history:', error);
+        }
+      } else if (dailyRecap && !isLoading && !hasSeenTodaysRecap) {
+        setIsDailyRecapTyping(true);
+      }
+    };
+
+    loadChatHistory();
+  }, [dailyRecap, isLoading, isAuthenticated, getToken]);
+
+  // Save messages to both localStorage and Supabase
   useEffect(() => {
     if (messages.length > 0) {
+      // Always save to localStorage for offline access
       localStorage.setItem('chatMessages', JSON.stringify(messages));
+      
+      // Save to Supabase if authenticated
+      if (isAuthenticated && currentSessionId) {
+        saveChatToSupabase(messages);
+      }
     }
-  }, [messages]);
+  }, [messages, isAuthenticated, currentSessionId]);
+
+  const saveChatToSupabase = async (chatMessages: Message[]) => {
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) return;
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      const sessionData = {
+        id: currentSessionId,
+        date: new Date().toISOString().split('T')[0],
+        messages: JSON.stringify(chatMessages),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('chat_sessions')
+        .upsert(sessionData);
+      
+      if (error) {
+        console.error('Error saving chat to Supabase:', error);
+      }
+    } catch (error) {
+      console.error('Error saving chat to Supabase:', error);
+    }
+  };
 
   const [typingProgress, setTypingProgress] = useState('');
 
@@ -137,19 +233,43 @@ const AIChat: React.FC<AIChatProps> = ({
   }, [messages, typingProgress]);
 
   // Handle daily recap typing completion
-  const handleDailyRecapComplete = () => {
+  const handleDailyRecapComplete = async () => {
     const today = new Date().toDateString();
     localStorage.setItem('hasSeenTodaysRecap', today);
     
-    const recapMessage = {
+    const recapMessage: Message = {
       id: '1',
       content: dailyRecap,
-      role: 'assistant' as const,
+      role: 'assistant',
       timestamp: new Date()
     };
     
     setMessages([recapMessage]);
     setIsDailyRecapTyping(false);
+
+    // Save this initial message if authenticated
+    if (isAuthenticated && currentSessionId) {
+      saveChatToSupabase([recapMessage]);
+    }
+  };
+
+  // Handle new conversation
+  const handleNewConversation = async () => {
+    // Create new session ID
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentSessionId(newSessionId);
+    
+    // Clear messages and reset state
+    setMessages([]);
+    setInput('');
+    setIsTyping(false);
+    setHasUserSentMessage(false);
+    setIsDailyRecapTyping(false);
+    
+    // Clear chat from localStorage
+    localStorage.removeItem('chatMessages');
+    
+    // The new conversation will automatically be saved when messages are added
   };
 
   // Handle Enter key
@@ -176,7 +296,7 @@ const AIChat: React.FC<AIChatProps> = ({
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
-    setHasUserSentMessage(true); // Mark that user has sent a message
+    setHasUserSentMessage(true);
 
     // Reset textarea height
     if (inputRef.current) {
@@ -238,6 +358,71 @@ const AIChat: React.FC<AIChatProps> = ({
   useEffect(() => {
     adjustTextareaHeight();
   }, [input]);
+
+  // Show authentication warning if not signed in
+  if (!isAuthenticated) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center max-w-md px-4">
+          <div className="bg-white/10 border border-white/20 rounded-2xl px-6 py-8 text-white backdrop-blur-sm">
+            <h3 className="text-lg font-semibold mb-4">Sign In Required</h3>
+            <p className="text-sm text-white/70 mb-6">
+              Please sign in to access AI chat features and sync your conversations across devices.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show centered input if no messages and not typing daily recap
+  if (messages.length === 0 && !isDailyRecapTyping) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex items-center gap-4 max-w-4xl w-full px-6">
+          <div className="flex-1 relative">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="What's on the agenda today?"
+              rows={1}
+              className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-4 pr-14 text-white placeholder-white/50 resize-none outline-none focus:border-white/40 focus:bg-white/15 transition-all text-lg leading-relaxed overflow-hidden"
+              style={{ 
+                minHeight: '60px', 
+                maxHeight: '60px',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || isTyping}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 text-white/50 hover:text-white/80 transition-colors disabled:opacity-30"
+              onClick={handleSubmit}
+            >
+              <Send size={20} />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onHistoryClick}
+            className="p-4 text-white/50 hover:text-white/80 transition-colors bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl"
+            title="Chat history"
+          >
+            <Clock size={20} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Show centered typing daily recap if it's typing and no user messages yet
   if (isDailyRecapTyping && !hasUserSentMessage) {
@@ -368,8 +553,17 @@ const AIChat: React.FC<AIChatProps> = ({
               </div>
               <button
                 type="button"
+                onClick={handleNewConversation}
+                className="p-3 text-white/40 hover:text-white/60 transition-colors"
+                title="New conversation"
+              >
+                <Plus size={20} />
+              </button>
+              <button
+                type="button"
                 onClick={onHistoryClick}
                 className="p-3 text-white/40 hover:text-white/60 transition-colors"
+                title="Chat history"
               >
                 <Clock size={20} />
               </button>

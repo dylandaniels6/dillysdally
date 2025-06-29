@@ -3,10 +3,12 @@ import { useAppContext } from '../../context/AppContext';
 import { Plus, Edit, Trash, CheckCircle, XCircle } from 'lucide-react';
 import { Habit } from '../../types';
 import { formatISODate } from '../../utils/dateUtils';
-import { supabase } from '../../lib/supabase';
+import { createAuthenticatedSupabaseClient } from '../../lib/supabase';
+import { useAuth } from '@clerk/clerk-react';
 
 const HabitTracker: React.FC = () => {
   const { habits, setHabits, selectedDate, isAuthenticated, user, settings } = useAppContext();
+  const { getToken } = useAuth();
   const [isAddingHabit, setIsAddingHabit] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   
@@ -27,6 +29,11 @@ const HabitTracker: React.FC = () => {
         
         // Update in Supabase if authenticated
         if (isAuthenticated && user) {
+          const token = await getToken({ template: 'supabase' });
+          if (!token) throw new Error('No authentication token');
+          
+          const supabase = createAuthenticatedSupabaseClient(token);
+
           const { error } = await supabase
             .from('habits')
             .update({
@@ -55,6 +62,11 @@ const HabitTracker: React.FC = () => {
         
         // Save to Supabase if authenticated
         if (isAuthenticated && user) {
+          const token = await getToken({ template: 'supabase' });
+          if (!token) throw new Error('No authentication token');
+          
+          const supabase = createAuthenticatedSupabaseClient(token);
+
           const { data, error } = await supabase
             .from('habits')
             .insert([{
@@ -86,7 +98,7 @@ const HabitTracker: React.FC = () => {
       resetForm();
     } catch (error) {
       console.error('Error saving habit:', error);
-      // Don't show alert since local save succeeded
+      alert('Failed to save habit. Please try again.');
     }
   };
   
@@ -97,6 +109,11 @@ const HabitTracker: React.FC = () => {
     // Delete from Supabase only if authenticated
     if (isAuthenticated) {
       try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('No authentication token');
+        
+        const supabase = createAuthenticatedSupabaseClient(token);
+
         const { error } = await supabase
           .from('habits')
           .delete()
@@ -104,7 +121,6 @@ const HabitTracker: React.FC = () => {
         if (error) throw error;
       } catch (error) {
         console.error('Error deleting habit:', error);
-        // Don't show alert since local deletion already succeeded
       }
     }
   };
@@ -129,6 +145,11 @@ const HabitTracker: React.FC = () => {
     // Update in Supabase if authenticated
     if (isAuthenticated) {
       try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('No authentication token');
+        
+        const supabase = createAuthenticatedSupabaseClient(token);
+
         const { error } = await supabase
           .from('habits')
           .update({
@@ -140,7 +161,6 @@ const HabitTracker: React.FC = () => {
         if (error) throw error;
       } catch (error) {
         console.error('Error updating habit progress:', error);
-        // Don't show alert since local update succeeded
       }
     }
   };

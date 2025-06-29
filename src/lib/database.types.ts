@@ -5,7 +5,7 @@ export interface Database {
         Row: {
           id: string;
           created_at: string;
-          user_id: string | null;
+          user_id: string;
           date: string;
           title: string;
           content: string;
@@ -13,23 +13,25 @@ export interface Database {
           tags: string[];
           ai_reflection: string | null;
           context_data: any | null;
+          updated_at: string;
         };
         Insert: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id: string;
           date: string;
           title: string;
           content: string;
-          mood: string;
+          mood?: string;
           tags?: string[];
           ai_reflection?: string | null;
           context_data?: any | null;
+          updated_at?: string;
         };
         Update: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id?: string;
           date?: string;
           title?: string;
           content?: string;
@@ -37,13 +39,14 @@ export interface Database {
           tags?: string[];
           ai_reflection?: string | null;
           context_data?: any | null;
+          updated_at?: string;
         };
       };
       habits: {
         Row: {
           id: string;
           created_at: string;
-          user_id: string | null;
+          user_id: string;
           date: string;
           title: string;
           description: string | null;
@@ -52,26 +55,26 @@ export interface Database {
           progress: number;
           completed: boolean;
           color: string | null;
-          completed_history: any | null; // Added column
+          completed_history: any | null;
         };
         Insert: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id: string;
           date: string;
           title: string;
           description?: string | null;
-          frequency: string;
-          target: number;
-          progress: number;
-          completed: boolean;
+          frequency?: string;
+          target?: number;
+          progress?: number;
+          completed?: boolean;
           color?: string | null;
-          completed_history?: any | null; // Added column
+          completed_history?: any | null;
         };
         Update: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id?: string;
           date?: string;
           title?: string;
           description?: string | null;
@@ -80,14 +83,14 @@ export interface Database {
           progress?: number;
           completed?: boolean;
           color?: string | null;
-          completed_history?: any | null; // Added column
+          completed_history?: any | null;
         };
       };
       climbing_sessions: {
         Row: {
           id: string;
           created_at: string;
-          user_id: string | null;
+          user_id: string;
           date: string;
           location: string;
           duration: number;
@@ -97,17 +100,17 @@ export interface Database {
         Insert: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id: string;
           date: string;
           location: string;
-          duration: number;
+          duration?: number;
           notes?: string | null;
           routes?: any[];
         };
         Update: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id?: string;
           date?: string;
           location?: string;
           duration?: number;
@@ -115,43 +118,11 @@ export interface Database {
           routes?: any[];
         };
       };
-      ai_analysis_summaries: {
-        Row: {
-          id: string;
-          created_at: string;
-          user_id: string | null;
-          period_start: string;
-          period_end: string;
-          summary_type: string;
-          content: string;
-          metadata: any | null;
-        };
-        Insert: {
-          id?: string;
-          created_at?: string;
-          user_id?: string | null;
-          period_start: string;
-          period_end: string;
-          summary_type: string;
-          content: string;
-          metadata?: any | null;
-        };
-        Update: {
-          id?: string;
-          created_at?: string;
-          user_id?: string | null;
-          period_start?: string;
-          period_end?: string;
-          summary_type?: string;
-          content?: string;
-          metadata?: any | null;
-        };
-      };
       expenses: {
         Row: {
           id: string;
           created_at: string;
-          user_id: string | null;
+          user_id: string;
           date: string;
           amount: number;
           description: string;
@@ -160,7 +131,7 @@ export interface Database {
         Insert: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id: string;
           date: string;
           amount: number;
           description: string;
@@ -169,7 +140,36 @@ export interface Database {
         Update: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id?: string;
+          date?: string;
+          amount?: number;
+          description?: string;
+          category?: string;
+        };
+      };
+      income: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string;
+          date: string;
+          amount: number;
+          description: string;
+          category: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id: string;
+          date: string;
+          amount: number;
+          description: string;
+          category: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          user_id?: string;
           date?: string;
           amount?: number;
           description?: string;
@@ -180,47 +180,123 @@ export interface Database {
         Row: {
           id: string;
           created_at: string;
-          user_id: string | null;
+          user_id: string;
           date: string;
           cash_accounts: number;
           liabilities: number;
           assets: number;
+          notes: string | null;
+          updated_at: string;
         };
         Insert: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id: string;
           date: string;
-          cash_accounts: number;
-          liabilities: number;
-          assets: number;
+          cash_accounts?: number;
+          liabilities?: number;
+          assets?: number;
+          notes?: string | null;
+          updated_at?: string;
         };
         Update: {
           id?: string;
           created_at?: string;
-          user_id?: string | null;
+          user_id?: string;
           date?: string;
           cash_accounts?: number;
           liabilities?: number;
           assets?: number;
+          notes?: string | null;
+          updated_at?: string;
+        };
+      };
+      tasks: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string;
+          text: string;
+          completed: boolean;
+          priority: number;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id: string;
+          text: string;
+          completed?: boolean;
+          priority?: number;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          user_id?: string;
+          text?: string;
+          completed?: boolean;
+          priority?: number;
+          completed_at?: string | null;
         };
       };
       user_profiles: {
         Row: {
           user_id: string;
           created_at: string;
-          settings: any; // jsonb type
+          updated_at: string;
+          settings: any;
         };
         Insert: {
           user_id: string;
           created_at?: string;
+          updated_at?: string;
           settings?: any;
         };
         Update: {
           user_id?: string;
           created_at?: string;
+          updated_at?: string;
           settings?: any;
         };
+      };
+      ai_analysis_summaries: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string;
+          period_start: string;
+          period_end: string;
+          summary_type: string;
+          content: string;
+          metadata: any | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id: string;
+          period_start: string;
+          period_end: string;
+          summary_type: string;
+          content: string;
+          metadata?: any | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          user_id?: string;
+          period_start?: string;
+          period_end?: string;
+          summary_type?: string;
+          content?: string;
+          metadata?: any | null;
+        };
+      };
+    };
+    Functions: {
+      get_clerk_user_id: {
+        Args: Record<PropertyKey, never>;
+        Returns: string | null;
       };
     };
   };

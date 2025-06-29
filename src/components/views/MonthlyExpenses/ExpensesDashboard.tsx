@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@clerk/clerk-react';
+import { createAuthenticatedSupabaseClient } from '../../../lib/supabase';
 import { useAppContext } from '../../../context/AppContext';
 import { 
   TrendingUp, 
@@ -255,6 +257,7 @@ interface ExpenseFilter {
 }
 
 const ExpensesDashboard: React.FC = () => {
+  const { getToken } = useAuth();
   const { expenses, settings, isAuthenticated } = useAppContext();
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('month');
   const [showQuickEntry, setShowQuickEntry] = useState(false);
@@ -333,6 +336,41 @@ const ExpensesDashboard: React.FC = () => {
     };
   }, [filteredExpenses, expenses, selectedTimeRange, filters.dateRange]);
 
+  // Handle export data with authentication
+  const handleExportData = async () => {
+    try {
+      const token = await getToken({ template: 'supabase' });
+      if (!token) {
+        alert('Please sign in to export data');
+        return;
+      }
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      // Export current filtered data
+      const exportData = {
+        expenses: filteredExpenses,
+        filters: filters,
+        timeRange: selectedTimeRange,
+        exportDate: new Date().toISOString(),
+        totalAmount: metrics.currentTotal
+      };
+      
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `expenses-${selectedTimeRange}-${new Date().toISOString().split('T')[0]}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Failed to export data. Please try again.');
+    }
+  };
+
   // Keyboard shortcuts
   React.useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -391,6 +429,7 @@ const ExpensesDashboard: React.FC = () => {
           <motion.button
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
+            onClick={handleExportData}
             className="relative p-3 rounded-xl font-medium transition-all duration-300 ease-out bg-gray-800/40 backdrop-blur-md border border-gray-700/50 hover:border-purple-500/50 shadow-lg hover:shadow-purple-500/20 text-gray-300 hover:text-white"
             style={{
               background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)',

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { JournalEntry } from '../../types';
-import { supabase } from '../../lib/supabase';
+import { createAuthenticatedSupabaseClient } from '../../lib/supabase';
+import { useAuth } from '@clerk/clerk-react';
 import PastEntries from './PastEntries';
 import { HabitRings } from './HabitRingMemory';
 import JournalEntrySection from './JournalEntrySection';
@@ -43,6 +44,8 @@ const DailyJournal: React.FC = () => {
     lastSyncTime,
     forceSync
   } = useAppContext();
+
+  const { getToken } = useAuth();
 
   const [currentEntry, setCurrentEntry] = useState<DailyEntry | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
@@ -142,11 +145,28 @@ const DailyJournal: React.FC = () => {
     
     setIsLoadingAI(true);
     try {
-      // AI reflection logic here
-      const reflection = "This is where your AI reflection would appear...";
-      updateEntry({ ai_reflection: reflection });
+      const token = await getToken({ template: 'supabase' });
+      if (!token) throw new Error('No authentication token');
+      
+      const supabase = createAuthenticatedSupabaseClient(token);
+      
+      const { data, error } = await supabase.functions.invoke('journal-reflect', {
+        body: {
+          entry: currentEntry.content,
+          mood: currentEntry.mood,
+          date: currentEntry.date
+        }
+      });
+
+      if (error) throw new Error(error.message || 'Failed to get AI reflection');
+
+      const reflection = data?.analysis || data?.reflection || data?.response || data?.text;
+      if (reflection) {
+        updateEntry({ ai_reflection: reflection });
+      }
     } catch (error) {
       console.error('Error getting AI reflection:', error);
+      alert('Failed to get AI reflection. Please try again.');
     } finally {
       setIsLoadingAI(false);
     }
@@ -179,39 +199,48 @@ const DailyJournal: React.FC = () => {
 
     // Save to Supabase if authenticated
     if (isAuthenticated && user) {
-      const entryData = {
-        date: entryToSave.date,
-        title: entryToSave.title,
-        content: entryToSave.content,
-        mood: entryToSave.mood,
-        tags: entryToSave.tags,
-        ai_reflection: entryToSave.ai_reflection,
-        context_data: {
-          habitData: entryToSave.habitData,
-          sleepData: entryToSave.sleepData,
-          meals: entryToSave.meals,
-          dayRating: entryToSave.dayRating,
-          miles: entryToSave.miles
-        },
-        user_id: user.id
-      };
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('No authentication token');
+        
+        const supabase = createAuthenticatedSupabaseClient(token);
 
-      const existingSupabaseEntry = await supabase
-        .from('journal_entries')
-        .select('id')
-        .eq('date', entryToSave.date)
-        .eq('user_id', user.id)
-        .single();
+        const entryData = {
+          date: entryToSave.date,
+          title: entryToSave.title,
+          content: entryToSave.content,
+          mood: entryToSave.mood,
+          tags: entryToSave.tags,
+          ai_reflection: entryToSave.ai_reflection,
+          context_data: {
+            habitData: entryToSave.habitData,
+            sleepData: entryToSave.sleepData,
+            meals: entryToSave.meals,
+            dayRating: entryToSave.dayRating,
+            miles: entryToSave.miles
+          },
+          user_id: user.id
+        };
 
-      if (existingSupabaseEntry.data) {
-        await supabase
+        // Check if entry exists (no user_id filter needed - RLS handles this)
+        const { data: existingEntry } = await supabase
           .from('journal_entries')
-          .update(entryData)
-          .eq('id', existingSupabaseEntry.data.id);
-      } else {
-        await supabase
-          .from('journal_entries')
-          .insert([entryData]);
+          .select('id')
+          .eq('date', entryToSave.date)
+          .single();
+
+        if (existingEntry) {
+          await supabase
+            .from('journal_entries')
+            .update(entryData)
+            .eq('id', existingEntry.id);
+        } else {
+          await supabase
+            .from('journal_entries')
+            .insert([entryData]);
+        }
+      } catch (error) {
+        console.error('Error saving to Supabase:', error);
       }
     }
   };
@@ -224,16 +253,24 @@ const DailyJournal: React.FC = () => {
     setJournalEntries(updatedEntries);
 
     if (isAuthenticated && user) {
-      await supabase
-        .from('journal_entries')
-        .update({
-          title: updatedEntry.title,
-          content: updatedEntry.content,
-          mood: updatedEntry.mood,
-          tags: updatedEntry.tags
-        })
-        .eq('id', updatedEntry.id)
-        .eq('user_id', user.id);
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('No authentication token');
+        
+        const supabase = createAuthenticatedSupabaseClient(token);
+
+        await supabase
+          .from('journal_entries')
+          .update({
+            title: updatedEntry.title,
+            content: updatedEntry.content,
+            mood: updatedEntry.mood,
+            tags: updatedEntry.tags
+          })
+          .eq('id', updatedEntry.id);
+      } catch (error) {
+        console.error('Error updating entry:', error);
+      }
     }
   };
 
@@ -242,11 +279,19 @@ const DailyJournal: React.FC = () => {
     setJournalEntries(updatedEntries);
 
     if (isAuthenticated && user) {
-      await supabase
-        .from('journal_entries')
-        .delete()
-        .eq('id', entryId)
-        .eq('user_id', user.id);
+      try {
+        const token = await getToken({ template: 'supabase' });
+        if (!token) throw new Error('No authentication token');
+        
+        const supabase = createAuthenticatedSupabaseClient(token);
+
+        await supabase
+          .from('journal_entries')
+          .delete()
+          .eq('id', entryId);
+      } catch (error) {
+        console.error('Error deleting entry:', error);
+      }
     }
   };
 
@@ -271,7 +316,7 @@ const DailyJournal: React.FC = () => {
       
       {/* Professional 7-Day Calendar Strip */}
       <Card variant="default" padding="sm">
-  <div className="flex items-center justify-between min-h-[120px]">
+        <div className="flex items-center justify-between min-h-[120px]">
           {/* Previous Week Button */}
           <IconButton
             icon={<ChevronLeft size={20} />}
@@ -330,18 +375,18 @@ const DailyJournal: React.FC = () => {
       </Card>
 
       {/* Habit Rings Section - Professional Card */}
-<Card variant="default" padding="lg">
-  <div className="habit-rings-container">
-    <HabitRings />
-  </div>
-</Card>
+      <Card variant="default" padding="lg">
+        <div className="habit-rings-container">
+          <HabitRings />
+        </div>
+      </Card>
 
-      {/* Journal Entry Section - Remove Card wrapper since component has its own */}
+      {/* Journal Entry Section */}
       <JournalEntrySection
         currentEntry={currentEntry}
         updateEntry={updateEntry}
         setSleepQuality={setSleepQuality}
-        settings={settings || { darkMode: true, authenticationEnabled: false, autoSave: true }}
+        settings={settings || { darkMode: true, authenticationEnabled: true, autoSave: true }}
         getAIReflection={getAIReflection}
         isLoadingAI={isLoadingAI}
         isAuthenticated={isAuthenticated}
@@ -353,7 +398,7 @@ const DailyJournal: React.FC = () => {
         <PastEntries 
           journalEntries={journalEntries}
           currentEntry={currentEntry}
-          settings={settings || { darkMode: true, authenticationEnabled: false, autoSave: true }}
+          settings={settings || { darkMode: true, authenticationEnabled: true, autoSave: true }}
           onEditEntry={editEntry}
           onDeleteEntry={deleteEntry}
           getMoodIcon={getMoodIcon}

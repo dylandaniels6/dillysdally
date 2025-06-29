@@ -8,21 +8,41 @@ export interface DayPopupData {
   habits?: Habit[];
   expenses?: Expense[];
   climbingSession?: ClimbingSession;
-  data: DayPopupData;
+  // Removed the recursive 'data: DayPopupData' property - this was causing infinite recursion
 }
 
 export interface SearchResult {
+  id: string; // Added missing id property
   type: 'journal' | 'climbing';
   date: string;
   title: string;
   content: string;
   highlightedContent: string;
   data: any;
+  score: number; // Added missing score property for search ranking
 }
 
 export interface DayData {
   date: Date;
   isCurrentMonth: boolean;
+}
+
+// Message interface for chat functionality
+export interface Message {
+  id: string;
+  content: string;
+  role: 'user' | 'assistant';
+  timestamp: Date;
+  isTyping?: boolean;
+}
+
+// Chat session interface
+export interface ChatSession {
+  id: string;
+  date: string;
+  messages: Message[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const habitNames = {
@@ -51,9 +71,20 @@ export const habitEmojis = {
   outreach: '📞'
 } as const;
 
+// Fixed the type annotation - was missing the ViewMode key type
 export const viewModeLabels: Record<ViewMode, string> = {
   day: 'Day',
   week: 'Week',
   month: 'Month',
   year: 'Year'
 };
+
+// Type for habit names (useful for type safety)
+export type HabitName = keyof typeof habitNames;
+
+// Type for habit emojis (useful for type safety)
+export type HabitEmoji = keyof typeof habitEmojis;
+
+// Export type for better type inference
+export type HabitNamesType = typeof habitNames;
+export type HabitEmojisType = typeof habitEmojis;

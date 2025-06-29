@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { useUser, useAuth } from '@clerk/clerk-react';
+import { supabase, createClerkSupabaseClient } from '../lib/supabase';
 import { Habit, ClimbingSession } from '../types';
 import { ClimbingRoute } from '../types';
 
@@ -120,11 +121,6 @@ export interface AppSettings {
   autoBackup: boolean;
 }
 
-export interface User {
-  id: string;
-  email: string;
-}
-
 interface AppContextType {
   currentView: ViewMode;
   setCurrentView: (view: ViewMode) => void;
@@ -153,48 +149,16 @@ interface AppContextType {
     V9: number;
     V10: number;
   };
-  user: User | null;
-  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  // Simplified auth using Clerk
+  user: any;
   isAuthenticated: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  enableAuthentication: () => void;
-  anonymousUserId: string;
+  userId: string;
   cloudSyncStatus: 'synced' | 'syncing' | 'error' | 'offline';
   lastSyncTime: Date | null;
   forceSync: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-// Generate a valid UUID v4
-const generateUUID = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-// Validate if a string is a valid UUID
-const isValidUUID = (uuid: string): boolean => {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-};
-
-// Generate or retrieve anonymous user ID as a valid UUID
-const getAnonymousUserId = (): string => {
-  let anonymousId = localStorage.getItem('anonymousUserId');
-  
-  // Check if the stored ID is a valid UUID, if not generate a new one
-  if (!anonymousId || !isValidUUID(anonymousId)) {
-    anonymousId = generateUUID();
-    localStorage.setItem('anonymousUserId', anonymousId);
-  }
-  
-  return anonymousId;
-};
 
 // ADDED: Helper function to convert old NetWorthEntry format to new format
 const convertLegacyNetWorthEntry = (entry: any): NetWorthEntry => {
@@ -336,6 +300,11 @@ const generateExampleNetWorthData = (): NetWorthEntry[] => {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Clerk hooks - replaces all custom auth logic
+  const { user, isLoaded } = useUser();
+  const { isSignedIn, session } = useAuth();
+
+  // Your existing state (keep all of this)
   const [currentView, setCurrentView] = useState<ViewMode>('overview');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
@@ -349,29 +318,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notifications: true,
     gyms: ['Crux Pflugerville', 'Crux Central', 'Mesa Rim', 'ABP - Westgate', 'ABP - Springdale'],
     categories: ['eating out', 'groceries', 'transportation', 'entertainment', 'shopping', 'subscriptions', 'bills'],
-    authenticationEnabled: false,
+    authenticationEnabled: true, // Always true with Clerk
     cloudSync: true,
     autoBackup: true,
   });
   const [habits, setHabits] = useState<Habit[]>([]);
   const [climbingSessions, setClimbingSessions] = useState<ClimbingSession[]>([]);
-  const [user, setUser] = useState<User | null>(null);
-  const [anonymousUserId, setAnonymousUserId] = useState<string>('');
-
-useEffect(() => {
-  if (typeof window !== 'undefined') {
-    setAnonymousUserId(getAnonymousUserId());
-  }
-}, []);
-
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'error' | 'offline'>('synced');
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   
   // Track if initial data load has been completed
   const initialLoadCompleted = useRef(false);
 
-  // Authentication is only active when enabled in settings
-  const isAuthenticated = settings.authenticationEnabled && !!user;
+  // Simplified auth state (powered by Clerk)
+  const isAuthenticated = isSignedIn && isLoaded;
+  const userId = user?.id || '';
+
+  // UPDATED: Use the new Clerk-native approach
+  const getAuthenticatedSupabase = useCallback(() => {
+    if (!isAuthenticated) return null;
+    
+    return createClerkSupabaseClient(session);
+  }, [isAuthenticated, session]);
+
+  // TEMPORARY DEBUG CODE - Add this to test authentication
+  useEffect(() => {
+    const testAuth = async () => {
+      if (isAuthenticated && session) {
+        const authSupabase = getAuthenticatedSupabase();
+        if (authSupabase) {
+          try {
+            console.log('🔍 Testing auth from app...');
+            
+            // Test if JWT is available
+            const jwtTest = await authSupabase.rpc('test_jwt_function');
+            console.log('JWT test result:', jwtTest);
+            
+            // Test get_clerk_user_id
+            const userIdTest = await authSupabase.rpc('get_clerk_user_id');
+            console.log('get_clerk_user_id result:', userIdTest);
+            
+          } catch (error) {
+            console.error('Auth test error:', error);
+          }
+        }
+      }
+    };
+    
+    if (isAuthenticated) {
+      testAuth();
+    }
+  }, [isAuthenticated, session, getAuthenticatedSupabase]);
 
   const totalSends = React.useMemo(() => {
     return journalEntries.reduce(
@@ -385,35 +382,6 @@ useEffect(() => {
       { V6: 0, V7: 0, V8: 0, V9: 0, V10: 0 }
     );
   }, [journalEntries]);
-
-  const signIn = async (email: string, password: string) => {
-    if (!settings.authenticationEnabled) {
-      throw new Error('Authentication is not enabled');
-    }
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    if (data.user) setUser({ id: data.user.id, email: data.user.email! });
-  };
-
-  const signUp = async (email: string, password: string) => {
-    if (!settings.authenticationEnabled) {
-      throw new Error('Authentication is not enabled');
-    }
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    if (data.user) setUser({ id: data.user.id, email: data.user.email! });
-  };
-
-  const signOut = async () => {
-    if (!settings.authenticationEnabled) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setUser(null);
-  };
-
-  const enableAuthentication = () => {
-    setSettings(prev => ({ ...prev, authenticationEnabled: true }));
-  };
 
   // Load data from localStorage
   const loadDataFromLocalStorage = useCallback(() => {
@@ -454,40 +422,50 @@ useEffect(() => {
     }
   }, []);
 
-  // Cloud sync functions
-  const loadDataFromCloud = useCallback(async (currentSettings: AppSettings) => {
-    if (!currentSettings.cloudSync) return null;
+  // UPDATED: Cloud sync with new Clerk integration
+  const loadDataFromCloud = useCallback(async () => {
+    if (!settings.cloudSync || !isAuthenticated || !userId) return null;
     
     setCloudSyncStatus('syncing');
     try {
-      // For anonymous users, query with user_id IS NULL
-      // For authenticated users, query with user_id = user.id
-      const userFilter = isAuthenticated ? user?.id : null;
-      
-      // Load all data types
+      const authSupabase = getAuthenticatedSupabase();
+      if (!authSupabase) {
+        console.error('Failed to get authenticated Supabase client');
+        setCloudSyncStatus('error');
+        return null;
+      }
+
+      console.log('🔍 Testing Supabase JWT integration...');
+
+      // Test the function from within your app
+      try {
+        const testResult = await authSupabase.rpc('get_clerk_user_id');
+        console.log('✅ get_clerk_user_id full result:', JSON.stringify(testResult, null, 2));
+        console.log('✅ get_clerk_user_id data value:', testResult.data);
+        console.log('✅ Expected user ID from Clerk:', userId);
+      } catch (error) {
+        console.error('❌ get_clerk_user_id error:', error);
+      }
+
+      console.log('Making authenticated requests with user ID:', userId); // Debug log
+
+      // CRITICAL: Remove all .eq('user_id', xxx) filters - RLS handles this automatically
       const [journalData, expensesData, incomeData, netWorthData, habitsData, climbingData, profileData] = await Promise.all([
-        userFilter 
-          ? supabase.from('journal_entries').select('*').eq('user_id', userFilter).order('date', { ascending: false })
-          : supabase.from('journal_entries').select('*').is('user_id', null).order('date', { ascending: false }),
-        userFilter 
-          ? supabase.from('expenses').select('*').eq('user_id', userFilter).order('date', { ascending: false })
-          : supabase.from('expenses').select('*').is('user_id', null).order('date', { ascending: false }),
-        userFilter 
-          ? supabase.from('income').select('*').eq('user_id', userFilter).order('date', { ascending: false })
-          : supabase.from('income').select('*').is('user_id', null).order('date', { ascending: false }),
-        userFilter 
-          ? supabase.from('net_worth_entries').select('*').eq('user_id', userFilter).order('date', { ascending: false })
-          : supabase.from('net_worth_entries').select('*').is('user_id', null).order('date', { ascending: false }),
-        userFilter 
-          ? supabase.from('habits').select('*').eq('user_id', userFilter)
-          : supabase.from('habits').select('*').is('user_id', null),
-        userFilter 
-          ? supabase.from('climbing_sessions').select('*').eq('user_id', userFilter)
-          : supabase.from('climbing_sessions').select('*').is('user_id', null),
-        userFilter 
-          ? supabase.from('user_profiles').select('settings').eq('user_id', userFilter).maybeSingle()
-          : supabase.from('user_profiles').select('settings').is('user_id', null).maybeSingle()
+        authSupabase.from('journal_entries').select('*').order('date', { ascending: false }),
+        authSupabase.from('expenses').select('*').order('date', { ascending: false }),
+        authSupabase.from('income').select('*').order('date', { ascending: false }),
+        authSupabase.from('net_worth_entries').select('*').order('date', { ascending: false }),
+        authSupabase.from('habits').select('*'),
+        authSupabase.from('climbing_sessions').select('*'),
+        authSupabase.from('user_profiles').select('settings').maybeSingle()
       ]);
+
+      // Log the responses to see if RLS is working
+      console.log('Journal entries received:', journalData.data?.length || 0);
+      console.log('Expenses received:', expensesData.data?.length || 0);
+      
+      if (journalData.error) console.error('Journal error:', journalData.error);
+      if (expensesData.error) console.error('Expenses error:', expensesData.error);
 
       const cloudData = {
         journalEntries: journalData.data || [],
@@ -507,10 +485,10 @@ useEffect(() => {
       setCloudSyncStatus('error');
       return null;
     }
-  }, [isAuthenticated, user?.id]);
+  }, [settings.cloudSync, isAuthenticated, userId, getAuthenticatedSupabase]);
 
   const forceSync = useCallback(async () => {
-    const cloudData = await loadDataFromCloud(settings);
+    const cloudData = await loadDataFromCloud();
     if (cloudData) {
       // Process and update state with cloud data
       if (cloudData.journalEntries.length > 0) {
@@ -566,11 +544,11 @@ useEffect(() => {
         }));
       }
     }
-  }, [loadDataFromCloud, settings]);
+  }, [loadDataFromCloud]);
 
   // Initial data load - runs only once
   useEffect(() => {
-    if (initialLoadCompleted.current) return;
+    if (initialLoadCompleted.current || !isAuthenticated) return;
     
     const initializeData = async () => {
       // 1. Load from localStorage first
@@ -581,7 +559,7 @@ useEffect(() => {
         setSettings(prev => ({
           ...prev,
           ...localData.settings,
-          authenticationEnabled: localData.settings.authenticationEnabled ?? false,
+          authenticationEnabled: true, // Always true with Clerk
           cloudSync: localData.settings.cloudSync ?? true,
           autoBackup: localData.settings.autoBackup ?? true,
         }));
@@ -602,8 +580,7 @@ useEffect(() => {
       setClimbingSessions(localData.climbingSessions);
       
       // 4. Try to load from cloud
-      const currentSettings = localData.settings || settings;
-      const cloudData = await loadDataFromCloud(currentSettings);
+      const cloudData = await loadDataFromCloud();
       
       if (cloudData) {
         // 5. Update with cloud data if available, otherwise keep local data
@@ -675,14 +652,18 @@ useEffect(() => {
     };
 
     initializeData();
-  }, [loadDataFromLocalStorage, loadDataFromCloud, settings]);
+  }, [loadDataFromLocalStorage, loadDataFromCloud, isAuthenticated]);
 
-  // Auto-sync data changes to cloud
+  // UPDATED: Auto-sync with new Clerk integration
   useEffect(() => {
-    if (settings.cloudSync && journalEntries.length > 0 && initialLoadCompleted.current) {
-      const timeoutId = setTimeout(() => {
-        journalEntries.forEach(entry => {
-          const entryData = {
+    if (settings.cloudSync && journalEntries.length > 0 && initialLoadCompleted.current && isAuthenticated) {
+      const timeoutId = setTimeout(async () => {
+        try {
+          const authSupabase = getAuthenticatedSupabase();
+          if (!authSupabase) return;
+
+          // Simple batch upsert for journal entries - RLS will handle user_id automatically
+          const entriesToSync = journalEntries.map(entry => ({
             id: entry.id,
             date: entry.date,
             title: entry.title || `Journal Entry - ${entry.date}`,
@@ -705,33 +686,20 @@ useEffect(() => {
               sessionNotes: entry.sessionNotes,
               sends: entry.sends,
             },
-            user_id: isAuthenticated ? user?.id : null,
-          };
-          // Sync to cloud logic here
-        });
+            user_id: userId, // This will be validated by RLS policies
+          }));
+
+          await authSupabase.from('journal_entries').upsert(entriesToSync);
+          setCloudSyncStatus('synced');
+          setLastSyncTime(new Date());
+        } catch (error) {
+          console.error('Auto-sync error:', error);
+          setCloudSyncStatus('error');
+        }
       }, 30000);
       return () => clearTimeout(timeoutId);
     }
-  }, [journalEntries, settings.cloudSync, isAuthenticated, user?.id]);
-
-  // Only check for existing session if authentication is enabled
-  useEffect(() => {
-    if (!settings.authenticationEnabled) return;
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email! });
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? { id: session.user.id, email: session.user.email! } : null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [settings.authenticationEnabled]);
+  }, [journalEntries, settings.cloudSync, isAuthenticated, userId, getAuthenticatedSupabase]);
 
   // Always save to localStorage as backup
   useEffect(() => {
@@ -785,7 +753,7 @@ useEffect(() => {
   // Network status monitoring
   useEffect(() => {
     const handleOnline = () => {
-      if (settings.cloudSync && initialLoadCompleted.current) {
+      if (settings.cloudSync && initialLoadCompleted.current && isAuthenticated) {
         setCloudSyncStatus('syncing');
         forceSync();
       }
@@ -802,7 +770,7 @@ useEffect(() => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [settings.cloudSync, forceSync]);
+  }, [settings.cloudSync, forceSync, isAuthenticated]);
 
   return (
     <AppContext.Provider
@@ -828,14 +796,10 @@ useEffect(() => {
         climbingSessions,
         setClimbingSessions,
         totalSends,
+        // Simplified auth (powered by Clerk)
         user,
-        setUser,
         isAuthenticated,
-        signIn,
-        signUp,
-        signOut,
-        enableAuthentication,
-        anonymousUserId,
+        userId,
         cloudSyncStatus,
         lastSyncTime,
         forceSync,

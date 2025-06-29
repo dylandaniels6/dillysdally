@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../../context/AppContext';
 import { formatISODate, getPreviousDays, formatShortDate, isSameDay } from '../../utils/dateUtils';
 import { Calendar, TrendingUp, BarChart, Mountain } from 'lucide-react';
@@ -13,6 +14,7 @@ import {
 } from 'recharts';
 
 const Dashboard: React.FC = () => {
+  const { isSignedIn } = useAuth();
   const { 
     habits, 
     journalEntries, 
@@ -20,7 +22,8 @@ const Dashboard: React.FC = () => {
     selectedDate,
     setSelectedDate,
     setViewMode,
-    settings 
+    settings,
+    isAuthenticated
   } = useAppContext();
   
   // Climbing progress state - matches the climbing tab
@@ -41,6 +44,8 @@ const Dashboard: React.FC = () => {
 
   // Calculate streak (consecutive days with completed habits)
   const calculateStreak = () => {
+    if (!isAuthenticated) return 0;
+    
     let streak = 0;
     const sortedDates = [...journalEntries].sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -84,6 +89,8 @@ const Dashboard: React.FC = () => {
   ];
 
   const accountCreationDate = useMemo(() => {
+    if (!isAuthenticated) return new Date('2020-01-01');
+    
     const allDates = [
       ...climbingSessions.map(s => new Date(s.date)),
       ...journalEntries.map(e => new Date(e.date))
@@ -92,7 +99,7 @@ const Dashboard: React.FC = () => {
     return allDates.length > 0 
       ? new Date(Math.min(...allDates.map(d => d.getTime())))
       : new Date('2020-01-01');
-  }, [climbingSessions, journalEntries]);
+  }, [climbingSessions, journalEntries, isAuthenticated]);
 
   const dateRange = useMemo(() => {
     const endDate = new Date();
@@ -112,6 +119,8 @@ const Dashboard: React.FC = () => {
     const counts: Record<string, number> = {
       V6: 0, V7: 0, V8: 0, V9: 0, V10: 0,
     };
+
+    if (!isAuthenticated) return Object.entries(counts).map(([grade, value]) => ({ grade, value }));
 
     const allEntries = [...climbingSessions, ...journalEntries];
 
@@ -135,10 +144,12 @@ const Dashboard: React.FC = () => {
     });
 
     return Object.entries(counts).map(([grade, value]) => ({ grade, value }));
-  }, [climbingSessions, journalEntries, selectedTimeRange, dateRange]);
+  }, [climbingSessions, journalEntries, selectedTimeRange, dateRange, isAuthenticated]);
 
   const totalSends = gradeCounts.reduce((sum, g) => sum + g.value, 0);
   const activeDays = useMemo(() => {
+    if (!isAuthenticated) return 0;
+    
     const uniqueDates = new Set();
     const allEntries = [...climbingSessions, ...journalEntries];
     
@@ -153,7 +164,7 @@ const Dashboard: React.FC = () => {
     });
     
     return uniqueDates.size;
-  }, [climbingSessions, journalEntries, selectedTimeRange, dateRange]);
+  }, [climbingSessions, journalEntries, selectedTimeRange, dateRange, isAuthenticated]);
 
   const maxCount = Math.max(...gradeCounts.map(g => g.value), 10);
   const roundedMax = Math.ceil(maxCount / 10) * 10;
@@ -166,6 +177,29 @@ const Dashboard: React.FC = () => {
   const selectDay = (date: Date) => {
     setSelectedDate(date);
   };
+
+  // Show authentication prompt if not signed in
+  if (!isAuthenticated) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold">Overview</h2>
+        <div className="text-center py-12">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-md mx-auto">
+            <h3 className="text-lg font-semibold text-white mb-4">Sign In Required</h3>
+            <p className="text-white/70 mb-6">
+              Please sign in to view your dashboard, progress tracking, and analytics.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
+            >
+              Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -331,7 +365,7 @@ const Dashboard: React.FC = () => {
                 {todayJournalEntry.content}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                {todayJournalEntry.tags.map((tag, index) => (
+                {todayJournalEntry.tags?.map((tag, index) => (
                   <span 
                     key={index}
                     className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-xs"
