@@ -42,7 +42,7 @@ const Journal: React.FC = () => {
   
   const deleteEntry = async (id: string) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);
@@ -69,7 +69,7 @@ const Journal: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);
@@ -116,7 +116,7 @@ const Journal: React.FC = () => {
     if (!currentEntry) return;
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);

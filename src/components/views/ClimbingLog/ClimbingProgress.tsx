@@ -40,11 +40,18 @@ interface ClimbingData {
 interface ClimbingProgressProps {
   selectedTimeRange: TimeRange;
   onTimeRangeChange: (range: TimeRange) => void;
+  climbTypeFilters: {
+    gym: boolean;
+    kilter: boolean;
+  };
+  onFiltersChange: (filters: { gym: boolean; kilter: boolean }) => void;
 }
 
 const ClimbingProgress: React.FC<ClimbingProgressProps> = ({ 
   selectedTimeRange, 
-  onTimeRangeChange 
+  onTimeRangeChange,
+  climbTypeFilters,
+  onFiltersChange
 }) => {
   const { climbingSessions, journalEntries, settings, user } = useAppContext();
   const [activeChart, setActiveChart] = useState<'overview' | 'performance' | 'analytics'>('overview');
@@ -163,13 +170,17 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
         }
         const data = dataMap.get(key)!;
         data.sessions += 1;
-        data.totalClimbs += session.routes.length;
-        data.completedClimbs += session.routes.filter(r => r.completed).length;
-        session.routes.forEach(route => {
-          if (route.completed) {
-            data.gradeBreakdown[route.grade] = (data.gradeBreakdown[route.grade] || 0) + 1;
-          }
-        });
+        
+        // FIXED: Check if routes is an array before using array methods
+        if (Array.isArray(session.routes)) {
+          data.totalClimbs += session.routes.length;
+          data.completedClimbs += session.routes.filter(r => r.completed).length;
+          session.routes.forEach(route => {
+            if (route.completed) {
+              data.gradeBreakdown[route.grade] = (data.gradeBreakdown[route.grade] || 0) + 1;
+            }
+          });
+        }
       }
     });
 
@@ -181,6 +192,7 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
           dataMap.set(key, { date: key, totalClimbs: 0, completedClimbs: 0, gradeBreakdown: {}, sessions: 0 });
         }
         const data = dataMap.get(key)!;
+        data.sessions += 1;
         Object.entries(entry.sends).forEach(([grade, count]) => {
           if (count > 0) {
             data.gradeBreakdown[grade] = (data.gradeBreakdown[grade] || 0) + count;
@@ -204,7 +216,10 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
     climbingSessions.forEach(session => {
       const sessionDate = new Date(session.date);
       if (sessionDate >= startDate && sessionDate <= endDate) {
-        totalClimbs += session.routes.filter(r => r.completed).length;
+        // FIXED: Check if routes is an array
+        if (Array.isArray(session.routes)) {
+          totalClimbs += session.routes.filter(r => r.completed).length;
+        }
       }
     });
 
@@ -305,12 +320,15 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
       let sends = 0;
       
       climbingSessions.forEach(session => {
-        session.routes.forEach(route => {
-          if (route.grade === grade) {
-            attempts++;
-            if (route.completed) sends++;
-          }
-        });
+        // FIXED: Check if routes is an array before using forEach
+        if (Array.isArray(session.routes)) {
+          session.routes.forEach(route => {
+            if (route.grade === grade) {
+              attempts++;
+              if (route.completed) sends++;
+            }
+          });
+        }
       });
       
       return {
@@ -325,6 +343,32 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
 
   const COLORS = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
+  // StatCard component
+  interface StatCardProps {
+    icon: React.ReactNode;
+    label: string;
+    value: React.ReactNode;
+    settings: any;
+  }
+
+  const StatCard: React.FC<StatCardProps> = ({ icon, label, value, settings }) => (
+    <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-lg ${settings.darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          {icon}
+        </div>
+        <div className="flex-1">
+          <p className={`text-sm ${settings.darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            {label}
+          </p>
+          <p className={`text-2xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
+            {value}
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
       {/* Chart Type Selector */}
@@ -334,10 +378,8 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
             onClick={() => setActiveChart('overview')}
             className={`px-4 py-2 text-sm rounded-md font-medium transition-all duration-200 ${
               activeChart === 'overview'
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
-                : settings.darkMode
-                ? 'text-gray-300 hover:text-white'
-                : 'text-gray-600 hover:text-gray-900'
+                ? `${settings.darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} shadow-sm`
+                : `${settings.darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`
             }`}
           >
             Overview
@@ -346,10 +388,8 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
             onClick={() => setActiveChart('performance')}
             className={`px-4 py-2 text-sm rounded-md font-medium transition-all duration-200 ${
               activeChart === 'performance'
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
-                : settings.darkMode
-                ? 'text-gray-300 hover:text-white'
-                : 'text-gray-600 hover:text-gray-900'
+                ? `${settings.darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} shadow-sm`
+                : `${settings.darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`
             }`}
           >
             Performance
@@ -358,10 +398,8 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
             onClick={() => setActiveChart('analytics')}
             className={`px-4 py-2 text-sm rounded-md font-medium transition-all duration-200 ${
               activeChart === 'analytics'
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
-                : settings.darkMode
-                ? 'text-gray-300 hover:text-white'
-                : 'text-gray-600 hover:text-gray-900'
+                ? `${settings.darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} shadow-sm`
+                : `${settings.darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`
             }`}
           >
             Analytics
@@ -372,23 +410,22 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
       {/* Overview Tab */}
       {activeChart === 'overview' && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <StatCard 
               icon={<Mountain size={18} className="text-blue-500" />} 
-              label="Total Climbs" 
-              value={stats.totalClimbs} 
+              label="Total Sends" 
+              value={stats.totalCompleted} 
               settings={settings} 
             />
             <StatCard 
               icon={
-                <div className="flex items-center space-x-1">
-                  {stats.comparisonData?.showIcon && (
-                    stats.comparisonData.isIncrease ? 
-                      <TrendingUp size={18} className="text-green-500" /> :
-                      stats.comparisonData.isDecrease ? 
+                <div className="flex items-center">
+                  {stats.comparisonData?.showIcon && stats.comparisonData?.isIncrease ? 
+                    <TrendingUp size={18} className="text-green-500" /> :
+                      stats.comparisonData?.isDecrease ? 
                         <TrendingDown size={18} className="text-red-500" /> :
                         <TrendingUp size={18} className="text-green-500" />
-                  )}
+                  }
                   {!stats.comparisonData?.showIcon && <TrendingUp size={18} className="text-gray-500" />}
                 </div>
               }
@@ -448,14 +485,11 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
                   contentStyle={{
                     backgroundColor: settings.darkMode ? '#1F2937' : '#FFFFFF',
                     border: `1px solid ${settings.darkMode ? '#374151' : '#E5E7EB'}`,
-                    borderRadius: '8px'
+                    borderRadius: '0.5rem'
                   }}
+                  labelStyle={{ color: settings.darkMode ? '#F3F4F6' : '#111827' }}
                 />
-                <Bar dataKey="successRate" fill="#10B981" radius={[8, 8, 0, 0]}>
-                  {performanceMetrics.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
+                <Bar dataKey="successRate" fill="#3B82F6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -481,7 +515,13 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: settings.darkMode ? '#1F2937' : '#FFFFFF',
+                    border: `1px solid ${settings.darkMode ? '#374151' : '#E5E7EB'}`,
+                    borderRadius: '0.5rem'
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </Card>
@@ -490,53 +530,41 @@ const ClimbingProgress: React.FC<ClimbingProgressProps> = ({
 
       {/* Analytics Tab */}
       {activeChart === 'analytics' && (
-        <div className="space-y-6">
+        <>
           {/* Mountain Visualization */}
           <MountainVisualization 
             climbingSessions={climbingSessions}
             journalEntries={journalEntries}
             settings={settings}
-            height={500}
+            height={400}
           />
 
-          {/* Additional Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className={`flex items-center justify-center mb-3 text-green-500`}>
-                <Target size={20} />
-              </div>
-              <p className={`text-sm text-center ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Average Success Rate</p>
-              <p className={`text-xl font-bold text-center mt-1 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{`${(stats.totalCompleted / stats.totalClimbs * 100 || 0).toFixed(1)}%`}</p>
-            </Card>
-            <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className={`flex items-center justify-center mb-3 text-yellow-500`}>
-                <Zap size={20} />
-              </div>
-              <p className={`text-sm text-center ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Climbs per Session</p>
-              <p className={`text-xl font-bold text-center mt-1 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{(stats.totalClimbs / stats.totalSessions || 0).toFixed(1)}</p>
-            </Card>
-            <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className={`flex items-center justify-center mb-3 text-blue-500`}>
-                <Clock size={20} />
-              </div>
-              <p className={`text-sm text-center ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Avg Session Duration</p>
-              <p className={`text-xl font-bold text-center mt-1 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{`${Math.round((climbingSessions.reduce((sum, s) => sum + (s.duration || 0), 0) / climbingSessions.length) || 0)} min`}</p>
-            </Card>
-          </div>
-        </div>
+          {/* Progression Over Time */}
+          <Card className={`p-6 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Climbing Progression
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={progressionData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={settings.darkMode ? '#374151' : '#E5E7EB'} />
+                <XAxis dataKey="date" stroke={settings.darkMode ? '#D1D5DB' : '#374151'} />
+                <YAxis stroke={settings.darkMode ? '#D1D5DB' : '#374151'} />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: settings.darkMode ? '#1F2937' : '#FFFFFF',
+                    border: `1px solid ${settings.darkMode ? '#374151' : '#E5E7EB'}`,
+                    borderRadius: '0.5rem'
+                  }}
+                />
+                <Line type="monotone" dataKey="sends" stroke="#10B981" name="Sends" strokeWidth={2} />
+                <Line type="monotone" dataKey="attempts" stroke="#3B82F6" name="Attempts" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+        </>
       )}
     </div>
   );
 };
-
-const StatCard = ({ icon, label, value, settings }: { icon: JSX.Element; label: string; value: React.ReactNode; settings: any }) => (
-  <Card className={`p-4 ${settings.darkMode ? 'bg-gray-800' : 'bg-white'} border ${settings.darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-    <div className="flex items-center space-x-2 mb-2">
-      {icon}
-      <span className={`text-sm font-medium ${settings.darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</span>
-    </div>
-    <p className={`text-2xl font-bold ${settings.darkMode ? 'text-white' : 'text-gray-900'}`}>{value}</p>
-  </Card>
-);
 
 export default ClimbingProgress;

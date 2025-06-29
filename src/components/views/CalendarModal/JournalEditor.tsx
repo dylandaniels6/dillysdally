@@ -27,7 +27,7 @@ const JournalEditor: React.FC<JournalEditorProps> = ({ entry, onClose, settings 
     
     try {
       // Get authentication token
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         throw new Error('Authentication required. Please sign in to save changes.');
       }

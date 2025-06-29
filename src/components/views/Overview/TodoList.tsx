@@ -27,7 +27,7 @@ const TodoList: React.FC = () => {
 
   const loadTasks = async () => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);
@@ -78,7 +78,7 @@ const TodoList: React.FC = () => {
     };
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);
@@ -109,7 +109,7 @@ const TodoList: React.FC = () => {
     };
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);
@@ -132,7 +132,7 @@ const TodoList: React.FC = () => {
 
   const deleteTask = async (taskId: string) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);
@@ -155,7 +155,7 @@ const TodoList: React.FC = () => {
 
     // Update priorities in database
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);

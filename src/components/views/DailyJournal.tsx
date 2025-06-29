@@ -145,7 +145,7 @@ const DailyJournal: React.FC = () => {
     
     setIsLoadingAI(true);
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);
@@ -200,7 +200,7 @@ const DailyJournal: React.FC = () => {
     // Save to Supabase if authenticated
     if (isAuthenticated && user) {
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getToken();
         if (!token) throw new Error('No authentication token');
         
         const supabase = createAuthenticatedSupabaseClient(token);
@@ -254,7 +254,7 @@ const DailyJournal: React.FC = () => {
 
     if (isAuthenticated && user) {
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getToken();
         if (!token) throw new Error('No authentication token');
         
         const supabase = createAuthenticatedSupabaseClient(token);
@@ -280,7 +280,7 @@ const DailyJournal: React.FC = () => {
 
     if (isAuthenticated && user) {
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getToken();
         if (!token) throw new Error('No authentication token');
         
         const supabase = createAuthenticatedSupabaseClient(token);

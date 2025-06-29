@@ -62,7 +62,7 @@ const NetWorthTracker: React.FC = () => {
   // Handle successful form submissions with authentication
   const handleQuickAddSuccess = async (formData: any) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -102,7 +102,7 @@ const NetWorthTracker: React.FC = () => {
   // Handle asset operations with authentication
   const handleAssetAdd = async (formData: any) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -128,7 +128,7 @@ const NetWorthTracker: React.FC = () => {
 
   const handleAssetUpdate = async (id: string, value: number) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -153,7 +153,7 @@ const NetWorthTracker: React.FC = () => {
 
   const handleAssetDelete = async (id: string) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -179,7 +179,7 @@ const NetWorthTracker: React.FC = () => {
   // Handle data export with authentication
   const handleExportData = async () => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         alert('Please sign in to export data');
         return;
@@ -221,7 +221,7 @@ const NetWorthTracker: React.FC = () => {
   // Handle data refresh with authentication
   const handleRefreshData = async () => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         alert('Please sign in to refresh data');
         return;

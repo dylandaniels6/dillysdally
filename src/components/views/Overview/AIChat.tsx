@@ -111,7 +111,7 @@ const AIChat: React.FC<AIChatProps> = ({
       }
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getToken();
         if (!token) {
           handleOfflineMode();
           return;
@@ -200,7 +200,7 @@ const AIChat: React.FC<AIChatProps> = ({
 
   const saveChatToSupabase = async (chatMessages: Message[]) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) return;
       
       const supabase = createAuthenticatedSupabaseClient(token);

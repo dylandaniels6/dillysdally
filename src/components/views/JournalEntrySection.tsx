@@ -115,7 +115,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
       if (currentEntry.meals && currentEntry.meals.trim().length > 10) {
         setIsGeneratingMealAI(true);
         try {
-          const token = await getToken({ template: 'supabase' });
+          const token = await getToken();
           if (!token) throw new Error('No authentication token');
           
           const supabase = createAuthenticatedSupabaseClient(token);

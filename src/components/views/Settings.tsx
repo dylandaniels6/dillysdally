@@ -151,7 +151,7 @@ const Settings: React.FC = () => {
     
     try {
       if (settings.cloudSync && isAuthenticated) {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getToken();
         if (!token) throw new Error('No authentication token');
         
         const supabase = createAuthenticatedSupabaseClient(token);

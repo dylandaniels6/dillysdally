@@ -43,8 +43,9 @@ const YesterdayRecap: React.FC = () => {
     `${Math.floor(yesterdayClimbing.duration / 60)}h ${yesterdayClimbing.duration % 60}m` : 
     '0m';
   const routesCompleted = yesterdayClimbing ? 
-    yesterdayClimbing.routes.filter(route => route.completed).length : 
-    0;
+  yesterdayClimbing.climbs.filter(climb => climb.completed).length : 
+  0;
+
 
   // Show authentication prompt if not signed in
   if (!isAuthenticated) {

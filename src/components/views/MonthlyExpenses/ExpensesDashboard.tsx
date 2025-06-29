@@ -339,7 +339,7 @@ const ExpensesDashboard: React.FC = () => {
   // Handle export data with authentication
   const handleExportData = async () => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         alert('Please sign in to export data');
         return;

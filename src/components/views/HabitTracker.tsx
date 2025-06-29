@@ -29,7 +29,7 @@ const HabitTracker: React.FC = () => {
         
         // Update in Supabase if authenticated
         if (isAuthenticated && user) {
-          const token = await getToken({ template: 'supabase' });
+          const token = await getToken();
           if (!token) throw new Error('No authentication token');
           
           const supabase = createAuthenticatedSupabaseClient(token);
@@ -62,7 +62,7 @@ const HabitTracker: React.FC = () => {
         
         // Save to Supabase if authenticated
         if (isAuthenticated && user) {
-          const token = await getToken({ template: 'supabase' });
+          const token = await getToken();
           if (!token) throw new Error('No authentication token');
           
           const supabase = createAuthenticatedSupabaseClient(token);
@@ -109,7 +109,7 @@ const HabitTracker: React.FC = () => {
     // Delete from Supabase only if authenticated
     if (isAuthenticated) {
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getToken();
         if (!token) throw new Error('No authentication token');
         
         const supabase = createAuthenticatedSupabaseClient(token);
@@ -145,7 +145,7 @@ const HabitTracker: React.FC = () => {
     // Update in Supabase if authenticated
     if (isAuthenticated) {
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getToken();
         if (!token) throw new Error('No authentication token');
         
         const supabase = createAuthenticatedSupabaseClient(token);

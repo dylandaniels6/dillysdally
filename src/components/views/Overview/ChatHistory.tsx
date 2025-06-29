@@ -41,7 +41,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ isOpen, onClose }) => {
     setError(null);
     
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) {
         // Fall back to localStorage if not authenticated
         loadFromLocalStorage();
@@ -146,7 +146,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ isOpen, onClose }) => {
 
   const saveChatSession = async (session: ChatSession) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (token) {
         const supabase = createAuthenticatedSupabaseClient(token);
         
@@ -201,7 +201,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ isOpen, onClose }) => {
     }
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (token) {
         const supabase = createAuthenticatedSupabaseClient(token);
         

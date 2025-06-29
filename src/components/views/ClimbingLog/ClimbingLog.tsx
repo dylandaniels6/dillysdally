@@ -58,7 +58,7 @@ const ClimbingLog: React.FC = () => {
   
   const deleteSession = async (sessionId: string) => {
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
       const supabase = createAuthenticatedSupabaseClient(token);
