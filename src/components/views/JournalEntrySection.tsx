@@ -118,7 +118,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
           const token = await getToken();
           if (!token) throw new Error('No authentication token');
           
-          const supabase = createAuthenticatedSupabaseClient(token);
+          const supabase = createAuthenticatedSupabaseClient(token, userId);
 
           const { data, error } = await supabase.functions.invoke('meal-analyze', {
             body: {

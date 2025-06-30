@@ -11,7 +11,7 @@ interface JournalEditorProps {
 }
 
 const JournalEditor: React.FC<JournalEditorProps> = ({ entry, onClose, settings }) => {
-  const { journalEntries, setJournalEntries } = useAppContext();
+  const { journalEntries, setJournalEntries, userId } = useAppContext();
   const [content, setContent] = useState(entry.content);
   const [mood, setMood] = useState(entry.mood || 'neutral');
   const [gratitude, setGratitude] = useState(entry.gratitude || '');

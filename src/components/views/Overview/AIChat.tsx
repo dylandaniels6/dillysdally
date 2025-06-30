@@ -94,7 +94,7 @@ const AIChat: React.FC<AIChatProps> = ({
   const [currentSessionId, setCurrentSessionId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const { journalEntries, expenses, climbingSessions, habits, isAuthenticated } = useAppContext();
+const { journalEntries, expenses, climbingSessions, habits, isAuthenticated, userId } = useAppContext();
 
   // Initialize session
   useEffect(() => {
@@ -111,13 +111,16 @@ const AIChat: React.FC<AIChatProps> = ({
       }
 
       try {
-        const token = await getToken();
+        const token = await getToken({ 
+          template: 'supabase',
+          skipCache: true  // Force fresh token
+        });
         if (!token) {
           handleOfflineMode();
           return;
         }
         
-        const supabase = createAuthenticatedSupabaseClient(token);
+        const supabase = createAuthenticatedSupabaseClient(token, userId);
         
         // Try to get today's chat session
         const today = new Date().toISOString().split('T')[0];
@@ -200,18 +203,22 @@ const AIChat: React.FC<AIChatProps> = ({
 
   const saveChatToSupabase = async (chatMessages: Message[]) => {
     try {
-      const token = await getToken();
+      const token = await getToken({ 
+        template: 'supabase',
+        skipCache: true  // Force fresh token
+      });
       if (!token) return;
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       const sessionData = {
-        id: currentSessionId,
-        date: new Date().toISOString().split('T')[0],
-        messages: JSON.stringify(chatMessages),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+  id: currentSessionId,
+  user_id: userId,  // Add this line!
+  date: new Date().toISOString().split('T')[0],
+  messages: JSON.stringify(chatMessages),
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString()
+};
 
       const { error } = await supabase
         .from('chat_sessions')

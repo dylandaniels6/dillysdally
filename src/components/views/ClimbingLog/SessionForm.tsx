@@ -193,7 +193,7 @@ const SessionForm: React.FC<SessionFormProps> = ({
       const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
 
       // Convert both gym and kilter climb counts to array of ClimbingRoute
       const routes: ClimbingRoute[] = [];

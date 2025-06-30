@@ -61,7 +61,7 @@ const ClimbingLog: React.FC = () => {
       const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
 
       const { error } = await supabase
         .from('climbing_sessions')

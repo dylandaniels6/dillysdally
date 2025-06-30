@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Moon, Sun, Save, Bell, Download, Trash, Shield, User, Cloud, CloudOff, RefreshCw } from 'lucide-react';
-import DataImport from '../common/DataImport';
+import { Moon, Sun, Save, Bell, Download, Trash, Shield, User, Cloud, CloudOff, RefreshCw, Database } from 'lucide-react';
+import DataImportModal from './DataImportModal';
 import { createAuthenticatedSupabaseClient } from '../../lib/supabase';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -118,6 +118,7 @@ const Settings: React.FC = () => {
   } = useAppContext();
 
   const { getToken } = useAuth();
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const updateSetting = (key: keyof typeof settings, value: boolean) => {
     setSettings({ ...settings, [key]: value });
@@ -154,18 +155,18 @@ const Settings: React.FC = () => {
         const token = await getToken();
         if (!token) throw new Error('No authentication token');
         
-        const supabase = createAuthenticatedSupabaseClient(token);
+        const supabase = createAuthenticatedSupabaseClient(token, userId);
         
         // Delete all user data from Supabase - RLS handles user filtering automatically
-        await Promise.all([
-          supabase.from('journal_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-          supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-          supabase.from('net_worth_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-          supabase.from('habits').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-          supabase.from('climbing_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-          supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-          supabase.from('user_profiles').delete().neq('user_id', '00000000-0000-0000-0000-000000000000')
-        ]);
+await Promise.all([
+  supabase.from('journal_entries').delete().gte('created_at', '1900-01-01'),
+  supabase.from('expenses').delete().gte('date', '1900-01-01'),
+  supabase.from('income').delete().gte('date', '1900-01-01'),
+  supabase.from('net_worth_entries').delete().gte('date', '1900-01-01'),
+  supabase.from('habits').delete().gte('created_at', '1900-01-01'),
+  supabase.from('climbing_sessions').delete().gte('date', '1900-01-01'),
+  // Remove user_profiles and tasks if those tables don't exist
+]);
       }
       
       // Clear local storage
@@ -427,7 +428,31 @@ const Settings: React.FC = () => {
       </Card>
 
       {/* Data Import Section */}
-      <DataImport />
+      <Card variant="elevated">
+        <h3 className={`text-lg font-semibold mb-6 ${
+          settings.darkMode ? 'text-white' : 'text-gray-900'
+        }`}>
+          Data Import
+        </h3>
+        
+        <p className={`text-sm mb-4 ${
+          settings.darkMode ? 'text-gray-400' : 'text-gray-600'
+        }`}>
+          Import your historical data from Google Sheets, CSV files, or other formats. 
+          Our AI-powered system will intelligently parse and map your data.
+        </p>
+        
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="flex items-center gap-3 w-full p-4 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-300 transition-colors group"
+        >
+          <Database size={20} className="group-hover:scale-110 transition-transform" />
+          <div className="text-left">
+            <div className="font-medium">Import Historical Data</div>
+            <div className="text-sm text-purple-400">Journal entries, expenses, climbing logs, and more</div>
+          </div>
+        </button>
+      </Card>
 
       {/* Appearance */}
       <Card variant="elevated">
@@ -565,6 +590,12 @@ const Settings: React.FC = () => {
           </p>
         </div>
       </Card>
+
+      {/* Data Import Modal */}
+      <DataImportModal 
+        isOpen={showImportModal} 
+        onClose={() => setShowImportModal(false)} 
+      />
     </div>
   );
 };

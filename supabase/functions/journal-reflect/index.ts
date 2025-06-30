@@ -1,91 +1,173 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
+import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { createOpenAIClient } from '../_shared/openai.ts';
+import { requireAuth, getSupabaseClient } from '../_shared/auth.ts';
+import { trackFunctionCall } from '../_shared/tracking.ts';
+import { ResponseCache } from '../_shared/cache.ts';
+import { getServiceSupabaseClient } from '../_shared/supabase.ts';
+import type { APIResponse } from '../_shared/types.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+serve(async (req: Request) => {
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const startTime = Date.now();
+  let user: any;
 
   try {
-    const { entry, habits, mood, date, context } = await req.json()
+    // Authenticate user
+    user = await requireAuth(req);
+    const supabase = getSupabaseClient(req);
+    const serviceSupabase = getServiceSupabaseClient(); // For cache and tracking
 
-    // Create a comprehensive prompt for GPT-4
-    const prompt = `As a therapeutic AI assistant, provide a thoughtful reflection on this journal entry. Focus on patterns, insights, and gentle guidance.
+    // Parse request body
+    const { entry, mood, date, habits = {} } = await req.json();
 
-Journal Entry (${date}):
-"${entry}"
-
-Additional Context:
-- Mood: ${mood}
-- Day Rating: ${context?.dayRating}/5
-- Wake Time: ${context?.wakeTime}
-- Sleep Time: ${context?.sleepTime}
-- Miles: ${context?.miles}
-- Climbed: ${context?.climbed ? 'Yes' : 'No'}
-
-Daily Habits:
-${Object.entries(habits).map(([habit, completed]) => `- ${habit}: ${completed ? 'Completed' : 'Not completed'}`).join('\n')}
-
-Please provide:
-1. A brief reflection on the emotional tone and themes
-2. Observations about patterns or habits
-3. Gentle, supportive insights or suggestions
-4. Encouragement for continued growth
-
-Keep the response warm, supportive, and under 200 words.`
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a compassionate therapeutic AI assistant that provides thoughtful, supportive reflections on journal entries. Your responses should be warm, insightful, and encouraging while maintaining appropriate boundaries.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 300,
-        temperature: 0.7,
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`)
+    if (!entry) {
+      throw new Error('Journal entry content is required');
     }
 
-    const data = await response.json()
-    const reflection = data.choices[0]?.message?.content
+    // Check cache first
+    const cache = new ResponseCache(serviceSupabase);
+    const cacheKey = { entry: entry.substring(0, 100), mood, date }; // Use first 100 chars for cache
+    const cachedResponse = await cache.get('journal-reflect', cacheKey, user.id);
+
+    if (cachedResponse) {
+      const response: APIResponse = {
+        status: 'success',
+        data: { 
+          reflection: cachedResponse.reflection,
+          cached: true 
+        },
+      };
+
+      return new Response(JSON.stringify(response), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get user's recent context for better reflections
+    const { data: recentEntries } = await supabase
+      .from('journal_entries')
+      .select('mood, tags, context_data')
+      .order('date', { ascending: false })
+      .limit(5);
+
+    // Create AI reflection
+    const openai = createOpenAIClient();
+    const systemPrompt = buildSystemPrompt(recentEntries);
+    const userPrompt = buildUserPrompt({ entry, mood, date, habits });
+
+    const completion = await openai.createChatCompletion({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 400,
+    });
+
+    const reflection = completion.choices[0]?.message?.content;
+    const usage = completion.usage;
 
     if (!reflection) {
-      throw new Error('No reflection generated')
+      throw new Error('Failed to generate reflection');
     }
 
-    return new Response(
-      JSON.stringify({ analysis: reflection }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Track usage
+    await trackFunctionCall(
+      serviceSupabase,
+      'journal-reflect',
+      user.id,
+      'gpt-4.1-mini',
+      startTime,
+      usage,
+      'success'
+    );
+
+    // Cache the response
+    const ttl = ResponseCache.getTTL('journal-reflect');
+    await cache.set(
+      'journal-reflect',
+      cacheKey,
+      { reflection },
+      ttl,
+      user.id,
+      usage.total_tokens
+    );
+
+    const response: APIResponse = {
+      status: 'success',
+      data: { 
+        reflection,
+        usage: {
+          tokens: usage.total_tokens,
+          model: 'gpt-4.1-mini'
+        }
       },
-    )
+    };
+
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
   } catch (error) {
-    console.error('Error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    )
+    console.error('Journal reflect error:', error);
+
+    // Track error
+    if (user) {
+      const serviceSupabase = getServiceSupabaseClient();
+      await trackFunctionCall(
+        serviceSupabase,
+        'journal-reflect',
+        user.id,
+        'gpt-4.1-mini',
+        startTime,
+        { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        'error',
+        error.message
+      );
+    }
+
+    const response: APIResponse = {
+      status: 'error',
+      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+    };
+
+    return new Response(JSON.stringify(response), {
+      status: error instanceof Response ? error.status : 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
-})
+});
+
+function buildSystemPrompt(recentEntries: any[] = []): string {
+  const recentMoods = recentEntries.map(e => e.mood).filter(Boolean).join(', ');
+  
+  return `You are a compassionate AI therapist and life coach named Dilly. You provide thoughtful, 
+supportive reflections on journal entries with these guidelines:
+
+1. Be warm, empathetic, and encouraging
+2. Identify patterns and insights without being prescriptive
+3. Ask one thought-provoking question to encourage deeper reflection
+4. Keep responses concise (200-300 words)
+5. Consider the user's recent emotional journey: ${recentMoods || 'No recent data'}
+
+Your goal is to help the user gain clarity and feel supported in their personal growth journey.`;
+}
+
+function buildUserPrompt({ entry, mood, date, habits }: any): string {
+  const habitsSummary = Object.entries(habits || {})
+    .map(([habit, completed]) => `${habit}: ${completed ? '✓' : '✗'}`)
+    .join(', ');
+
+  return `Journal Entry (${date}):
+"${entry}"
+
+Current mood: ${mood || 'Not specified'}
+Today's habits: ${habitsSummary || 'None tracked'}
+
+Please provide a thoughtful reflection that acknowledges their feelings, identifies any patterns or 
+insights, and ends with one gentle question that encourages deeper self-exploration.`;
+}

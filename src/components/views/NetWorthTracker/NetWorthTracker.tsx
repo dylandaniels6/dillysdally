@@ -67,7 +67,7 @@ const NetWorthTracker: React.FC = () => {
         throw new Error('Authentication required');
       }
 
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       // Add the entry to database
       const { data, error } = await supabase
@@ -107,7 +107,7 @@ const NetWorthTracker: React.FC = () => {
         throw new Error('Authentication required');
       }
 
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       // You might want to store assets separately or as part of net worth entries
       // This depends on your data structure - adjust as needed
@@ -133,7 +133,7 @@ const NetWorthTracker: React.FC = () => {
         throw new Error('Authentication required');
       }
 
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       // Update asset in database - adjust based on your schema
       
@@ -158,7 +158,7 @@ const NetWorthTracker: React.FC = () => {
         throw new Error('Authentication required');
       }
 
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       // Delete asset from database - adjust based on your schema
       
@@ -185,7 +185,7 @@ const NetWorthTracker: React.FC = () => {
         return;
       }
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       // Fetch all net worth data
       const { data, error } = await supabase
@@ -227,7 +227,7 @@ const NetWorthTracker: React.FC = () => {
         return;
       }
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       // Trigger a data refresh - you might want to call your data loading functions
       window.location.reload();

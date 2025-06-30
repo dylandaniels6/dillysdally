@@ -14,7 +14,7 @@ interface JournalEditorProps {
 
 const JournalEditor: React.FC<JournalEditorProps> = ({ entry, onClose, settings }) => {
   const { getToken } = useAuth();
-  const { journalEntries, setJournalEntries } = useAppContext();
+  const { journalEntries, setJournalEntries, userId } = useAppContext();
   const [content, setContent] = useState(entry.content);
   const [mood, setMood] = useState(entry.mood || 'neutral');
   const [gratitude, setGratitude] = useState(entry.context_data?.gratitude || '');
@@ -32,7 +32,7 @@ const JournalEditor: React.FC<JournalEditorProps> = ({ entry, onClose, settings 
         throw new Error('Authentication required. Please sign in to save changes.');
       }
 
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       const updatedEntry = {
         ...entry,

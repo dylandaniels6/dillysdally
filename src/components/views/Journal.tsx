@@ -45,7 +45,7 @@ const Journal: React.FC = () => {
       const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
 
       const { error } = await supabase
         .from('journal_entries')
@@ -72,7 +72,7 @@ const Journal: React.FC = () => {
       const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
 
       const { data, error } = await supabase.functions.invoke('journal-reflect', {
         body: {
@@ -119,7 +119,7 @@ const Journal: React.FC = () => {
       const token = await getToken();
       if (!token) throw new Error('No authentication token');
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
 
       const entryData = {
         date: currentEntry.date,

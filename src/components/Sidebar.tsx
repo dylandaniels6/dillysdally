@@ -6,9 +6,11 @@ import {
   Mountain, 
   CreditCard, 
   TrendingUp, 
-  Settings
+  Settings,
+  Brain  // Add this import
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { useUser } from '@clerk/clerk-react';  // Add this import
 
 // Ultra-minimal navigation items with labels
 const navigationItems = [
@@ -27,6 +29,15 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => {
   const { currentView, setCurrentView } = useAppContext();
   const [isExpanded, setIsExpanded] = useState(false);
+  const { user } = useUser();  // Add this line
+
+  // Check if current user is admin
+  const isAdmin = user?.emailAddresses[0]?.emailAddress === 'dylandaniels226@gmail.com';
+
+  // Add AI Analytics to navigation items if user is admin
+  const allNavigationItems = isAdmin 
+    ? [...navigationItems, { id: 'ai-usage', icon: Brain, view: 'ai-usage', label: 'AI Analytics' }]
+    : navigationItems;
 
   return (
     <motion.aside 
@@ -51,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => {
       </AnimatePresence>
       
       <nav className="relative flex flex-col items-start space-y-6 px-4 w-full">
-        {navigationItems.map((item, index) => {
+        {allNavigationItems.map((item, index) => {
           const isActive = currentView === item.view;
           const Icon = item.icon;
           
@@ -110,6 +121,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => {
                     transition={{ duration: 0.2, delay: 0.1 }}
                   >
                     {item.label}
+                    {item.id === 'ai-usage' && (
+                      <span className="text-xs text-purple-400 ml-1">(Admin)</span>
+                    )}
                   </motion.span>
                 )}
               </AnimatePresence>

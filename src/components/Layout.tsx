@@ -11,6 +11,7 @@ import NetWorthTracker from './views/NetWorthTracker/NetWorthTracker';
 import Settings from './views/Settings';
 import ClimbingLog from './views/ClimbingLog/ClimbingLog';
 import StarryBackground from './views/Overview/StarryBackground';
+import AIUsage from './views/AIUsage';
 
 const Layout: React.FC = () => {
   const { isSignedIn, isLoaded } = useAuth();
@@ -36,6 +37,8 @@ const Layout: React.FC = () => {
         return <NetWorthTracker />;
       case 'settings':
         return <Settings />;
+      case 'ai-usage':
+        return <AIUsage />;
       default:
         return <Overview />;
     }

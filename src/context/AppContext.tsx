@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
-import { createClerkSupabaseClient } from '../lib/supabase';
+import { createAuthenticatedSupabaseClient } from '../lib/supabase';
 import { Habit, ClimbingSession, ClimbingRoute } from '../types';
 
-export type ViewMode = 'overview' | 'journal' | 'habits' | 'climbing' | 'expenses' | 'networth' | 'settings';
+export type ViewMode = 'overview' | 'journal' | 'habits' | 'climbing' | 'expenses' | 'networth' | 'settings' | 'ai-usage';
 
 // UPDATED: Moved HabitData interface here and removed HabitState
 export interface HabitData {
@@ -297,7 +297,7 @@ const generateExampleNetWorthData = (): NetWorthEntry[] => {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Clerk hooks - replaces all custom auth logic
   const { user, isLoaded } = useUser();
-  const { isSignedIn, session } = useAuth();
+  const { isSignedIn, getToken } = useAuth();
 
   // Your existing state (keep all of this)
   const [currentView, setCurrentView] = useState<ViewMode>('overview');
@@ -329,29 +329,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isAuthenticated = isSignedIn && isLoaded;
   const userId = user?.id || '';
 
-  // FIXED: Use the new Clerk-native approach with proper async handling
-  const getAuthenticatedSupabase = useCallback(async () => {
-    if (!isAuthenticated || !session) return null;
+  // FIXED: Use the new Clerk-native approach with proper async handling and userId caching
+const getAuthenticatedSupabase = useCallback(async () => {
+  if (!isAuthenticated || !getToken) return null;
+  
+  try {
+    const token = await getToken({ template: 'supabase' });
+    if (!token) throw new Error('No token received');
     
-    try {
-      // This is now an async function that properly awaits the token
-      const authSupabase = await createClerkSupabaseClient(session);
-      return authSupabase;
-    } catch (error) {
-      console.error('Failed to create authenticated Supabase client:', error);
-      return null;
-    }
-  }, [isAuthenticated, session]);
+    // Pass userId for better caching
+    const authSupabase = createAuthenticatedSupabaseClient(token, userId);
+    return authSupabase;
+  } catch (error) {
+    console.error('Failed to create authenticated Supabase client:', error);
+    return null;
+  }
+}, [isAuthenticated, getToken, userId]); // Add userId to dependencies
 
-  // Calculate total sends
+  // Calculate total sends - FIXED: Added safety check for session.climbs
   const totalSends = climbingSessions.reduce((acc, session) => {
     const sends = { ...acc };
-    session.climbs.forEach(climb => {
-      const grade = climb.grade as keyof typeof sends;
-      if (grade in sends && climb.completed) {
-        sends[grade]++;
-      }
-    });
+    // Check if session.climbs exists and is an array before iterating
+    if (session.climbs && Array.isArray(session.climbs)) {
+      session.climbs.forEach(climb => {
+        const grade = climb.grade as keyof typeof sends;
+        if (grade in sends && climb.completed) {
+          sends[grade]++;
+        }
+      });
+    }
     return sends;
   }, { V6: 0, V7: 0, V8: 0, V9: 0, V10: 0 });
 
@@ -432,7 +438,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         authSupabase.from('expenses').select('*').order('date', { ascending: false }),
         authSupabase.from('income').select('*').order('date', { ascending: false }),
         authSupabase.from('net_worth_entries').select('*').order('date', { ascending: false }),
-        authSupabase.from('habits').select('*').order('createdAt', { ascending: false }),
+        authSupabase.from('habits').select('*').order('created_at', { ascending: false }),
         authSupabase.from('climbing_sessions').select('*').order('date', { ascending: false })
       ]);
 
@@ -516,7 +522,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const cloudData = await loadDataFromCloud();
       if (cloudData) {
         // Update local state with cloud data
-        if (cloudData.journalEntries.length > 0) setJournalEntries(cloudData.journalEntries);
+        if (cloudData.journalEntries.length > 0) {
+  setJournalEntries(cloudData.journalEntries.map(entry => ({
+    ...entry,
+    // 🔧 FIXED: Extract the main journal fields from context_data
+    content: entry.context_data?.content || entry.content || '',
+    title: entry.context_data?.title || entry.title || '',
+    mood: entry.context_data?.mood || entry.mood || 'neutral',
+    tags: entry.context_data?.tags || entry.tags || [],
+    
+    // Map other fields from context_data
+    habitData: entry.context_data?.habitData || undefined,
+    sleepData: entry.context_data?.sleepData || undefined,
+    meals: entry.context_data?.meals || entry.meals,
+    dayRating: entry.context_data?.dayRating || entry.dayRating,
+    miles: entry.context_data?.miles || entry.miles,
+    wakeTime: entry.context_data?.wakeTime || entry.wakeTime || '07:00',
+    sleepTime: entry.context_data?.sleepTime || entry.sleepTime || '23:00',
+    climbed: entry.context_data?.climbed || false,
+    gym: entry.context_data?.gym,
+    sessionNotes: entry.context_data?.sessionNotes,
+    sends: entry.context_data?.sends || { V6: 0, V7: 0, V8: 0, V9: 0, V10: 0 },
+  })));
+}
         if (cloudData.expenses.length > 0) setExpenses(cloudData.expenses);
         if (cloudData.income.length > 0) setIncome(cloudData.income);
         if (cloudData.netWorthEntries.length > 0) setNetWorthEntries(cloudData.netWorthEntries.map(convertLegacyNetWorthEntry));
@@ -565,29 +593,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       initialLoadCompleted.current = true;
       
       // 4. Only try to load from cloud if authenticated
-      if (isAuthenticated && session) {
-        const cloudData = await loadDataFromCloud();
+if (isAuthenticated) {
+  const cloudData = await loadDataFromCloud();
+  
+  if (cloudData) {
+    // 5. Update with cloud data if available, otherwise keep local data
+    if (cloudData.journalEntries.length > 0) {
+      setJournalEntries(cloudData.journalEntries.map(entry => ({
+        ...entry,
+        // 🔧 FIXED: Extract the main journal fields from context_data
+        content: entry.context_data?.content || entry.content || '',
+        title: entry.context_data?.title || entry.title || '',
+        mood: entry.context_data?.mood || entry.mood || 'neutral',
+        tags: entry.context_data?.tags || entry.tags || [],
         
-        if (cloudData) {
-          // 5. Update with cloud data if available, otherwise keep local data
-          if (cloudData.journalEntries.length > 0) {
-            setJournalEntries(cloudData.journalEntries.map(entry => ({
-              ...entry,
-              // Map from context_data to the new structure
-              habitData: entry.context_data?.habitData || undefined,
-              sleepData: entry.context_data?.sleepData || undefined,
-              meals: entry.context_data?.meals || entry.meals,
-              dayRating: entry.context_data?.dayRating || entry.dayRating,
-              miles: entry.context_data?.miles || entry.miles,
-              // Keep legacy fields for backward compatibility
-              wakeTime: entry.context_data?.wakeTime || entry.wakeTime || '07:00',
-              sleepTime: entry.context_data?.sleepTime || entry.sleepTime || '23:00',
-              climbed: entry.context_data?.climbed || false,
-              gym: entry.context_data?.gym,
-              sessionNotes: entry.context_data?.sessionNotes,
-              sends: entry.context_data?.sends || { V6: 0, V7: 0, V8: 0, V9: 0, V10: 0 },
-            })));
-          }
+        // Map from context_data to the new structure
+        habitData: entry.context_data?.habitData || undefined,
+        sleepData: entry.context_data?.sleepData || undefined,
+        meals: entry.context_data?.meals || entry.meals,
+        dayRating: entry.context_data?.dayRating || entry.dayRating,
+        miles: entry.context_data?.miles || entry.miles,
+        // Keep legacy fields for backward compatibility
+        wakeTime: entry.context_data?.wakeTime || entry.wakeTime || '07:00',
+        sleepTime: entry.context_data?.sleepTime || entry.sleepTime || '23:00',
+        climbed: entry.context_data?.climbed || false,
+        gym: entry.context_data?.gym,
+        sessionNotes: entry.context_data?.sessionNotes,
+        sends: entry.context_data?.sends || { V6: 0, V7: 0, V8: 0, V9: 0, V10: 0 },
+      })));
+    }
 
           if (cloudData.expenses.length > 0) setExpenses(cloudData.expenses);
           if (cloudData.income.length > 0) setIncome(cloudData.income);
@@ -640,7 +674,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       
       // 8. Generate example net worth data if none exists
-      if (localData.netWorthEntries.length === 0 && (!isAuthenticated || !session)) {
+if (localData.netWorthEntries.length === 0 && !isAuthenticated) {
         const exampleNetWorthData = generateExampleNetWorthData();
         setNetWorthEntries(exampleNetWorthData);
       }
@@ -649,7 +683,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     loadData();
-  }, [isLoaded, isAuthenticated, session]);
+  }, [isLoaded, isAuthenticated, loadDataFromLocalStorage, loadDataFromCloud]);
 
   // FIXED: Auto-sync with proper async handling
   useEffect(() => {

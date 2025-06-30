@@ -345,7 +345,7 @@ const ExpensesDashboard: React.FC = () => {
         return;
       }
       
-      const supabase = createAuthenticatedSupabaseClient(token);
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
       
       // Export current filtered data
       const exportData = {
