@@ -21,13 +21,13 @@ export const createAuthenticatedSupabaseClient = (token: string, userId: string)
     throw new Error('No user ID provided');
   }
 
-  // Create client with fresh token and user claims
+  // 🔧 FIXED: Removed the X-User-Id header that was causing CORS issues
+  // The user ID is already embedded in the JWT token from Clerk
   return createClient<Database>(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
-        Authorization: `Bearer ${token}`,
-        // Add user_id to the JWT claims for RLS policies
-        'X-User-Id': userId
+        Authorization: `Bearer ${token}`
+        // 🔧 REMOVED: 'X-User-Id': userId - this caused CORS errors
       }
     },
     auth: {

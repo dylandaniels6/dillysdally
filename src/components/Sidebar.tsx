@@ -7,10 +7,10 @@ import {
   CreditCard, 
   TrendingUp, 
   Settings,
-  Brain  // Add this import
+  Brain
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { useUser } from '@clerk/clerk-react';  // Add this import
+import { useAdminStatus } from '../hooks/useAdminStatus'; // 🔒 SECURE: Use server-side admin check
 
 // Ultra-minimal navigation items with labels
 const navigationItems = [
@@ -29,13 +29,12 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => {
   const { currentView, setCurrentView } = useAppContext();
   const [isExpanded, setIsExpanded] = useState(false);
-  const { user } = useUser();  // Add this line
+  
+  // 🔒 SECURE: Use server-side admin check instead of client-side email comparison
+  const { isAdmin, loading } = useAdminStatus();
 
-  // Check if current user is admin
-  const isAdmin = user?.emailAddresses[0]?.emailAddress === 'dylandaniels226@gmail.com';
-
-  // Add AI Analytics to navigation items if user is admin
-  const allNavigationItems = isAdmin 
+  // Add AI Analytics to navigation items if user is admin (and not loading)
+  const allNavigationItems = (isAdmin && !loading)
     ? [...navigationItems, { id: 'ai-usage', icon: Brain, view: 'ai-usage', label: 'AI Analytics' }]
     : navigationItems;
 
@@ -139,6 +138,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isTransparent = false }) => {
           );
         })}
       </nav>
+      
+      {/* Loading indicator for admin check */}
+      {loading && isExpanded && (
+        <div className="px-4 py-2 text-xs text-white/50 mt-auto">
+          Checking permissions...
+        </div>
+      )}
     </motion.aside>
   );
 };

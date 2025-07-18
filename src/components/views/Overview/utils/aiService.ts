@@ -26,12 +26,20 @@ export const sendChatMessage = async (
       skipCache: true
     });
 
+    // 🔧 ADDED: Get user ID from Clerk
+    const userId = (window as any).Clerk?.user?.id;
+
     if (!token) {
       throw new Error('Authentication required. Please sign in to use AI chat.');
     }
 
-    // Create authenticated Supabase client
-    const supabase = createAuthenticatedSupabaseClient(token);
+    // 🔧 ADDED: Check for user ID
+    if (!userId) {
+      throw new Error('User ID not available. Please sign in again.');
+    }
+
+    // 🔧 FIXED: Pass both token AND userId to createAuthenticatedSupabaseClient
+    const supabase = createAuthenticatedSupabaseClient(token, userId);
 
     const messages = [
       ...previousMessages.map(msg => ({

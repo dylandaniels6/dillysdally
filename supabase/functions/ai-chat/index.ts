@@ -78,6 +78,15 @@ const retryWithBackoff = async (fn: Function, maxRetries: number = 3): Promise<a
 };
 
 serve(async (req: Request) => {
+  // 🔍 DEBUG: Log all environment variables
+  console.log('=== ENVIRONMENT DEBUG ===');
+  console.log('All env vars:', Object.keys(Deno.env.toObject()));
+  console.log('OPENAI_API_KEY exists:', !!Deno.env.get('OPENAI_API_KEY'));
+  console.log('OPENAI_API_KEY length:', Deno.env.get('OPENAI_API_KEY')?.length || 0);
+  console.log('SUPABASE_URL exists:', !!Deno.env.get('SUPABASE_URL'));
+  console.log('SUPABASE_ANON_KEY exists:', !!Deno.env.get('SUPABASE_ANON_KEY'));
+  console.log('=========================');
+
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
@@ -99,7 +108,10 @@ serve(async (req: Request) => {
     const userContext = await getUserContext(supabase, user.id);
     
     // Build conversation with context
+    console.log('🔍 About to create OpenAI client...');
     const openai = createOpenAIClient();
+    console.log('✅ OpenAI client created successfully');
+    
     const systemMessage = buildSystemMessage(userContext);
     
     const allMessages: ChatMessage[] = [
