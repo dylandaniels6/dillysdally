@@ -12,7 +12,8 @@ import {
   Filter,
   Plus,
   Download,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 import ExpenseTimeline from './components/ExpenseTimeline';
 import TransactionTable from './components/TransactionTable';
@@ -23,7 +24,137 @@ import FilterBar from './components/FilterBar';
 import ExpenseChart from './components/ExpenseChart';
 import { formatCurrency, getDateRange } from './utils/expenseHelpers';
 
-// Create inline Card components since we need to fix the import path
+// 🔒 VALIDATION FUNCTIONS
+const validateExpenseData = (data: any): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+
+  // Amount validation
+  if (data.amount === undefined || data.amount === null) {
+    errors.push('Amount is required');
+  } else if (typeof data.amount !== 'number' || isNaN(data.amount)) {
+    errors.push('Amount must be a valid number');
+  } else if (data.amount <= 0) {
+    errors.push('Amount must be greater than zero');
+  } else if (data.amount > 1000000) {
+    errors.push('Amount cannot exceed $1,000,000');
+  } else if (data.amount < 0.01) {
+    errors.push('Amount must be at least $0.01');
+  }
+
+  // Description validation
+  if (data.description && typeof data.description === 'string') {
+    if (data.description.length > 500) {
+      errors.push('Description is too long (max 500 characters)');
+    }
+  }
+
+  // Category validation
+  if (!data.category || typeof data.category !== 'string') {
+    errors.push('Category is required');
+  } else if (data.category.length > 100) {
+    errors.push('Category name is too long (max 100 characters)');
+  }
+
+  // Date validation
+  if (data.date) {
+    const date = new Date(data.date);
+    if (isNaN(date.getTime())) {
+      errors.push('Invalid date format');
+    } else if (date > new Date()) {
+      errors.push('Date cannot be in the future');
+    } else if (date < new Date('1900-01-01')) {
+      errors.push('Date is too far in the past');
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+};
+
+const validateIncomeData = (data: any): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+
+  // Amount validation (similar to expenses but different limits)
+  if (data.amount === undefined || data.amount === null) {
+    errors.push('Income amount is required');
+  } else if (typeof data.amount !== 'number' || isNaN(data.amount)) {
+    errors.push('Income amount must be a valid number');
+  } else if (data.amount <= 0) {
+    errors.push('Income amount must be greater than zero');
+  } else if (data.amount > 10000000) {
+    errors.push('Income amount cannot exceed $10,000,000');
+  }
+
+  // Source validation
+  if (!data.source || typeof data.source !== 'string') {
+    errors.push('Income source is required');
+  } else if (data.source.length > 200) {
+    errors.push('Income source name is too long (max 200 characters)');
+  }
+
+  // Date validation
+  if (data.date) {
+    const date = new Date(data.date);
+    if (isNaN(date.getTime())) {
+      errors.push('Invalid date format');
+    } else if (date > new Date()) {
+      errors.push('Date cannot be in the future');
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+};
+
+const sanitizeExpenseInput = (input: string): string => {
+  return input
+    .replace(/<script[^>]*>.*?<\/script>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/data:text\/html/gi, '')
+    .trim()
+    .substring(0, 500); // Enforce max length
+};
+
+const sanitizeNumericInput = (value: any): number => {
+  const num = parseFloat(value);
+  if (isNaN(num)) return 0;
+  return Math.max(0, Math.min(num, 1000000)); // Clamp between 0 and 1M
+};
+
+// Enhanced validation hook
+const useExpenseValidation = () => {
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+
+  const validateExpense = useCallback((expense: any) => {
+    const validation = validateExpenseData(expense);
+    setValidationErrors(validation.errors);
+
+    // Add warnings for suspicious patterns
+    const warnings: string[] = [];
+    if (expense.amount > 10000) {
+      warnings.push('Large expense amount - please verify');
+    }
+    if (expense.description && expense.description.length < 3) {
+      warnings.push('Very short description - consider adding more details');
+    }
+    setValidationWarnings(warnings);
+
+    return validation.valid;
+  }, []);
+
+  const clearValidation = useCallback(() => {
+    setValidationErrors([]);
+    setValidationWarnings([]);
+  }, []);
+
+  return {
+    validationErrors,
+    validationWarnings,
+    validateExpense,
+    clearValidation
+  };
+};
+
+// Create inline Card components with validation styling
 interface CardProps {
   children: React.ReactNode;
   variant?: 'default' | 'elevated' | 'interactive' | 'metric' | 'hero';
@@ -33,6 +164,7 @@ interface CardProps {
   glow?: boolean;
   gradient?: boolean;
   loading?: boolean;
+  hasError?: boolean;
   className?: string;
 }
 
@@ -45,6 +177,7 @@ const Card: React.FC<CardProps> = ({
   glow = true,
   gradient = true,
   loading = false,
+  hasError = false,
   className = '',
   ...props
 }) => {
@@ -74,12 +207,16 @@ const Card: React.FC<CardProps> = ({
   const getCardStyle = (): React.CSSProperties => {
     let style: React.CSSProperties = {};
 
-    if (gradient) {
+    if (gradient && !hasError) {
       style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)';
+    } else if (hasError) {
+      style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)';
     }
 
-    if (glow) {
+    if (glow && !hasError) {
       style.boxShadow = '0 10px 25px rgba(139, 92, 246, 0.15), 0 4px 10px rgba(139, 92, 246, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)';
+    } else if (hasError) {
+      style.boxShadow = '0 10px 25px rgba(239, 68, 68, 0.15), 0 4px 10px rgba(239, 68, 68, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)';
     }
 
     return style;
@@ -90,6 +227,7 @@ const Card: React.FC<CardProps> = ({
     sizeVariants[size],
     paddingVariants[padding],
     loading && 'animate-pulse',
+    hasError && 'border-red-500/50',
     className
   ].filter(Boolean).join(' ');
 
@@ -182,23 +320,20 @@ const DynamicCategoryDisplay: React.FC<DynamicCategoryDisplayProps> = ({ categor
   const emoji = categoryEmojis[category] || '📝';
   const displayName = formatCategoryName(category);
 
-  // Dynamic font sizing algorithm - fine-tuned for optimal balance
   useEffect(() => {
     if (!textRef.current || !containerRef.current) return;
 
     const container = containerRef.current;
     const text = textRef.current;
     
-    // Available width with just a bit more padding for perfect balance
-    const availableWidth = container.offsetWidth - 22; // Slightly increased padding - 11px on each side
-    const availableHeight = 42; // Slightly reduced height
+    const availableWidth = container.offsetWidth - 22;
+    const availableHeight = 42;
     
-    let currentFontSize = 24; // Start a bit smaller
+    let currentFontSize = 24;
     text.style.fontSize = `${currentFontSize}px`;
     
-    // Binary search for optimal font size
     let minSize = 15;
-    let maxSize = 24; // Reduced max size slightly
+    let maxSize = 24;
     
     while (minSize <= maxSize) {
       currentFontSize = Math.floor((minSize + maxSize) / 2);
@@ -214,7 +349,6 @@ const DynamicCategoryDisplay: React.FC<DynamicCategoryDisplayProps> = ({ categor
       }
     }
     
-    // Use the largest size that fits - fine-tuned balance
     const finalSize = Math.max(Math.min(maxSize, 23), 15);
     setFontSize(finalSize);
     setIsLoaded(true);
@@ -225,12 +359,10 @@ const DynamicCategoryDisplay: React.FC<DynamicCategoryDisplayProps> = ({ categor
       ref={containerRef}
       className={`font-bold ${darkMode ? 'text-white' : 'text-gray-900'} flex flex-col items-center justify-center min-h-[60px] px-3`}
     >
-      {/* Emoji - slightly larger */}
       <span className="text-lg mb-1 flex-shrink-0">
         {emoji}
       </span>
       
-      {/* Dynamic text - larger and better balanced */}
       <span
         ref={textRef}
         className="leading-tight font-semibold tracking-tight text-center"
@@ -268,6 +400,9 @@ const ExpensesDashboard: React.FC = () => {
     dateRange: getDateRange('month')
   });
 
+  // 🔒 VALIDATION: Use validation hook
+  const { validationErrors, validationWarnings, validateExpense, clearValidation } = useExpenseValidation();
+
   // Time range options
   const timeRangeOptions: { key: TimeRange; label: string; days: number | null }[] = [
     { key: 'week', label: 'Week', days: 7 },
@@ -278,9 +413,16 @@ const ExpensesDashboard: React.FC = () => {
     { key: 'all', label: 'All', days: null }
   ];
 
-  // Filter expenses based on current filters
+  // 🔒 VALIDATION: Filter expenses with validation
   const filteredExpenses = useMemo(() => {
     return expenses.filter(expense => {
+      // Basic validation first
+      const validation = validateExpenseData(expense);
+      if (!validation.valid) {
+        console.warn('Invalid expense data found:', expense, validation.errors);
+        return false; // Exclude invalid data from display
+      }
+
       const expenseDate = new Date(expense.date);
       const matchesDate = expenseDate >= filters.dateRange.start && expenseDate <= filters.dateRange.end;
       const matchesCategory = filters.categories.length === 0 || filters.categories.includes(expense.category);
@@ -294,11 +436,13 @@ const ExpensesDashboard: React.FC = () => {
     });
   }, [expenses, filters]);
 
-  // Calculate totals and trends
+  // Calculate totals and trends with validation
   const metrics = useMemo(() => {
-    const currentTotal = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const currentTotal = filteredExpenses.reduce((sum, exp) => {
+      const validation = validateExpenseData(exp);
+      return validation.valid ? sum + exp.amount : sum;
+    }, 0);
     
-    // Get previous period for comparison
     const currentDays = timeRangeOptions.find(opt => opt.key === selectedTimeRange)?.days || 30;
     const previousStart = new Date(filters.dateRange.start);
     previousStart.setDate(previousStart.getDate() - currentDays);
@@ -306,6 +450,9 @@ const ExpensesDashboard: React.FC = () => {
     previousEnd.setDate(previousEnd.getDate() - 1);
     
     const previousExpenses = expenses.filter(expense => {
+      const validation = validateExpenseData(expense);
+      if (!validation.valid) return false;
+      
       const expenseDate = new Date(expense.date);
       return expenseDate >= previousStart && expenseDate <= previousEnd;
     });
@@ -314,10 +461,13 @@ const ExpensesDashboard: React.FC = () => {
     const change = currentTotal - previousTotal;
     const changePercent = previousTotal > 0 ? (change / previousTotal) * 100 : 0;
     
-    // Category breakdown
+    // Category breakdown with validation
     const categoryTotals = new Map<string, number>();
     filteredExpenses.forEach(exp => {
-      categoryTotals.set(exp.category, (categoryTotals.get(exp.category) || 0) + exp.amount);
+      const validation = validateExpenseData(exp);
+      if (validation.valid) {
+        categoryTotals.set(exp.category, (categoryTotals.get(exp.category) || 0) + exp.amount);
+      }
     });
     
     const topCategories = Array.from(categoryTotals.entries())
@@ -336,7 +486,7 @@ const ExpensesDashboard: React.FC = () => {
     };
   }, [filteredExpenses, expenses, selectedTimeRange, filters.dateRange]);
 
-  // Handle export data with authentication
+  // 🔒 VALIDATION: Enhanced export with validation
   const handleExportData = async () => {
     try {
       const token = await getToken();
@@ -347,13 +497,26 @@ const ExpensesDashboard: React.FC = () => {
       
       const supabase = createAuthenticatedSupabaseClient(token, userId);
       
-      // Export current filtered data
+      // Validate all data before export
+      const validExpenses = filteredExpenses.filter(expense => {
+        const validation = validateExpenseData(expense);
+        if (!validation.valid) {
+          console.warn('Excluding invalid expense from export:', expense, validation.errors);
+        }
+        return validation.valid;
+      });
+      
       const exportData = {
-        expenses: filteredExpenses,
+        expenses: validExpenses,
         filters: filters,
         timeRange: selectedTimeRange,
         exportDate: new Date().toISOString(),
-        totalAmount: metrics.currentTotal
+        totalAmount: metrics.currentTotal,
+        validationReport: {
+          totalRecords: filteredExpenses.length,
+          validRecords: validExpenses.length,
+          invalidRecords: filteredExpenses.length - validExpenses.length
+        }
       };
       
       const dataStr = JSON.stringify(exportData, null, 2);
@@ -365,9 +528,100 @@ const ExpensesDashboard: React.FC = () => {
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
+
+      // Show export summary
+      if (validExpenses.length < filteredExpenses.length) {
+        alert(`Export completed. ${validExpenses.length} valid records exported. ${filteredExpenses.length - validExpenses.length} invalid records excluded.`);
+      }
     } catch (error) {
       console.error('Error exporting data:', error);
       alert('Failed to export data. Please try again.');
+    }
+  };
+
+  // 🔒 VALIDATION: Enhanced quick entry with validation
+  const handleQuickEntrySubmit = async (expenseData: any) => {
+    // Clear previous validation
+    clearValidation();
+    
+    // Sanitize inputs
+    const sanitizedData = {
+      ...expenseData,
+      description: sanitizeExpenseInput(expenseData.description || ''),
+      amount: sanitizeNumericInput(expenseData.amount),
+      category: sanitizeExpenseInput(expenseData.category || '')
+    };
+    
+    // Validate the sanitized data
+    const isValid = validateExpense(sanitizedData);
+    
+    if (!isValid) {
+      return false; // Validation errors will be shown by the hook
+    }
+    
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
+      
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert([sanitizedData])
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      clearValidation();
+      setShowQuickEntry(false);
+      return true;
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      return false;
+    }
+  };
+
+  // 🔒 VALIDATION: Enhanced income entry with validation
+  const handleIncomeSubmit = async (incomeData: any) => {
+    // Validate income data
+    const validation = validateIncomeData(incomeData);
+    
+    if (!validation.valid) {
+      alert(`Please fix the following errors:\n${validation.errors.join('\n')}`);
+      return false;
+    }
+    
+    // Sanitize inputs
+    const sanitizedData = {
+      ...incomeData,
+      source: sanitizeExpenseInput(incomeData.source || ''),
+      amount: sanitizeNumericInput(incomeData.amount)
+    };
+    
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
+      const supabase = createAuthenticatedSupabaseClient(token, userId);
+      
+      const { data, error } = await supabase
+        .from('income')
+        .insert([sanitizedData])
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      setShowAddIncome(false);
+      return true;
+    } catch (error) {
+      console.error('Error adding income:', error);
+      return false;
     }
   };
 
@@ -394,6 +648,13 @@ const ExpensesDashboard: React.FC = () => {
           }`}>
             Monthly Expenses
           </h1>
+          {/* 🔒 VALIDATION: Data quality indicator */}
+          {filteredExpenses.length !== expenses.length && (
+            <div className="flex items-center gap-2 text-sm text-yellow-500">
+              <AlertTriangle size={16} />
+              <span>{expenses.length - filteredExpenses.length} invalid records excluded</span>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-3">
@@ -425,7 +686,6 @@ const ExpensesDashboard: React.FC = () => {
             Add Expense
           </motion.button>
           
-          {/* UPDATED: Download button with design system theme */}
           <motion.button
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
@@ -441,9 +701,42 @@ const ExpensesDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Metrics Cards - Updated with Card Component */}
+      {/* 🔒 VALIDATION: Validation errors display */}
+      {(validationErrors.length > 0 || validationWarnings.length > 0) && (
+        <div className="space-y-2">
+          {validationErrors.length > 0 && (
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle size={16} className="text-red-400" />
+                <h4 className="text-red-400 font-medium text-sm">Validation Errors</h4>
+              </div>
+              <ul className="text-red-300 text-xs space-y-1">
+                {validationErrors.map((error, index) => (
+                  <li key={index}>• {error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {validationWarnings.length > 0 && (
+            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle size={16} className="text-yellow-400" />
+                <h4 className="text-yellow-400 font-medium text-sm">Warnings</h4>
+              </div>
+              <ul className="text-yellow-300 text-xs space-y-1">
+                {validationWarnings.map((warning, index) => (
+                  <li key={index}>• {warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Metrics Cards - Enhanced with validation styling */}
       <CardGrid cols={4} gap="md">
-        <Card variant="metric" size="md" padding="lg">
+        <Card variant="metric" size="md" padding="lg" hasError={validationErrors.length > 0}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-400">
               Total Spent
@@ -519,7 +812,7 @@ const ExpensesDashboard: React.FC = () => {
         </Card>
       </CardGrid>
       
-      {/* NEW: Expense Chart */}
+      {/* Expense Chart */}
       <ExpenseChart 
         selectedTimeRange={selectedTimeRange}
         onTimeRangeChange={(range) => {
@@ -528,7 +821,7 @@ const ExpensesDashboard: React.FC = () => {
         }}
       />
       
-      {/* UPDATED: Time Range Selector with design system theme */}
+      {/* Time Range Selector */}
       <div className="flex justify-center">
         <div className="inline-flex rounded-2xl p-1.5 bg-gray-800/40 backdrop-blur-md border border-gray-700/50"
              style={{
@@ -563,9 +856,8 @@ const ExpensesDashboard: React.FC = () => {
         expenses={expenses}
       />
 
-      {/* Main Content Area - Single Column Layout */}
+      {/* Main Content Area */}
       <div className="space-y-6">
-        {/* Timeline */}
         <Card variant="elevated" padding="none" className="overflow-hidden">
           <ExpenseTimeline 
             expenses={filteredExpenses}
@@ -574,14 +866,12 @@ const ExpensesDashboard: React.FC = () => {
           />
         </Card>
         
-        {/* AI Insights */}
         <CategoryInsights 
           expenses={filteredExpenses}
           settings={settings}
           timeRange={selectedTimeRange} 
         />
         
-        {/* Recent Transactions */}
         <Card 
           variant="elevated" 
           padding="none" 
@@ -590,26 +880,44 @@ const ExpensesDashboard: React.FC = () => {
           <TransactionTable 
             expenses={filteredExpenses} 
             settings={settings}
-            onEdit={(expense) => console.log('Edit expense:', expense)}
-            onDelete={(id) => console.log('Delete expense:', id)} 
+            onEdit={(expense) => {
+              const validation = validateExpenseData(expense);
+              if (!validation.valid) {
+                alert(`Cannot edit invalid expense:\n${validation.errors.join('\n')}`);
+                return;
+              }
+              console.log('Edit expense:', expense);
+            }}
+            onDelete={(id) => {
+              if (confirm('Are you sure you want to delete this expense?')) {
+                console.log('Delete expense:', id);
+              }
+            }} 
           /> 
         </Card>
-
       </div>
 
-      {/* Quick Entry Modal */}
+      {/* Enhanced Modals with validation */}
       <AnimatePresence>
         {showAddIncome && (
           <AddIncome 
             onClose={() => setShowAddIncome(false)}
+            onSubmit={handleIncomeSubmit}
             settings={settings}
+            validationErrors={[]} // Pass validation state if needed
           />
         )}
         
         {showQuickEntry && (
           <QuickEntry 
-            onClose={() => setShowQuickEntry(false)}
+            onClose={() => {
+              setShowQuickEntry(false);
+              clearValidation();
+            }}
+            onSubmit={handleQuickEntrySubmit}
             settings={settings}
+            validationErrors={validationErrors}
+            validationWarnings={validationWarnings}
           />
         )}
       </AnimatePresence>

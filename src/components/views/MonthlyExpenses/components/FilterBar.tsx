@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { categoryColors } from "../utils/categoryColors";
 import { formatCurrencyPrecise } from "../utils/expenseHelpers";
+import DOMPurify from 'dompurify';
 
 interface Transaction {
   id: string;
@@ -422,7 +423,12 @@ const FilterBar: React.FC<FilterBarProps> = ({
                               className={`text-sm leading-relaxed ${
                                 settings.darkMode ? 'text-gray-300' : 'text-gray-600'
                               }`}
-                              dangerouslySetInnerHTML={{ __html: result.highlightedContent }}
+                              dangerouslySetInnerHTML={{ 
+                                __html: DOMPurify.sanitize(result.highlightedContent, {
+                                  ALLOWED_TAGS: ['mark'],
+                                  ALLOWED_ATTR: ['class']
+                                })
+                              }}
                             />
                           </div>
                         </div>

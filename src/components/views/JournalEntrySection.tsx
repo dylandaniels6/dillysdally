@@ -46,6 +46,61 @@ interface JournalEntrySectionProps {
   saveEntry: () => Promise<void>;
 }
 
+// 🔒 VALIDATION FUNCTIONS
+const validateJournalEntry = (entry: DailyEntry): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+
+  // Content validation
+  if (entry.content && entry.content.length > 10000) {
+    errors.push('Journal content is too long (max 10,000 characters)');
+  }
+
+  // Title validation  
+  if (entry.title && entry.title.length > 200) {
+    errors.push('Title is too long (max 200 characters)');
+  }
+
+  // Meals validation
+  if (entry.meals && entry.meals.length > 2000) {
+    errors.push('Meals description is too long (max 2,000 characters)');
+  }
+
+  // Day rating validation
+  if (entry.dayRating !== undefined && (entry.dayRating < 1 || entry.dayRating > 5)) {
+    errors.push('Day rating must be between 1 and 5');
+  }
+
+  // Miles validation
+  if (entry.miles !== undefined && (entry.miles < 0 || entry.miles > 10)) {
+    errors.push('Miles must be between 0 and 10');
+  }
+
+  // Sleep time validation
+  if (entry.sleepData?.wakeUp && !isValidTime(entry.sleepData.wakeUp)) {
+    errors.push('Invalid wake up time format');
+  }
+
+  if (entry.sleepData?.phoneOff && !isValidTime(entry.sleepData.phoneOff)) {
+    errors.push('Invalid phone off time format');
+  }
+
+  return { valid: errors.length === 0, errors };
+};
+
+const isValidTime = (time: string): boolean => {
+  const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+  return timeRegex.test(time);
+};
+
+const sanitizeInput = (input: string): string => {
+  // Remove potential XSS content and normalize whitespace
+  return input
+    .replace(/<script[^>]*>.*?<\/script>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/data:text\/html/gi, '')
+    .trim();
+};
+
 const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
   currentEntry,
   updateEntry,
@@ -63,22 +118,41 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
   const [isExpanded, setIsExpanded] = useState(true);
   const [showSavedState, setShowSavedState] = useState(false);
   const [isAIReflectionExpanded, setIsAIReflectionExpanded] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  // Handle time input changes with validation
-  const handleTimeChange = (field: 'wakeUp' | 'phoneOff', value: string) => {
-    // Always update immediately to show user input
-    updateEntry({
-      sleepData: { 
-        ...currentEntry.sleepData!, 
-        [field]: value 
-      }
-    });
+  // 🔒 VALIDATION: Validate on content change
+  const handleContentUpdate = (field: keyof DailyEntry, value: any) => {
+    // Sanitize string inputs
+    const sanitizedValue = typeof value === 'string' ? sanitizeInput(value) : value;
+    
+    // Update entry
+    const updatedEntry = { ...currentEntry, [field]: sanitizedValue };
+    updateEntry({ [field]: sanitizedValue });
+    
+    // Validate the updated entry
+    const validation = validateJournalEntry(updatedEntry);
+    setValidationErrors(validation.errors);
   };
 
-  // Handle input blur to ensure cleanup of invalid values
+  // 🔒 VALIDATION: Handle time input changes with validation
+  const handleTimeChange = (field: 'wakeUp' | 'phoneOff', value: string) => {
+    // Always update immediately to show user input
+    const updatedSleepData = { 
+      ...currentEntry.sleepData!, 
+      [field]: value 
+    };
+    
+    updateEntry({ sleepData: updatedSleepData });
+    
+    // Validate the updated entry
+    const updatedEntry = { ...currentEntry, sleepData: updatedSleepData };
+    const validation = validateJournalEntry(updatedEntry);
+    setValidationErrors(validation.errors);
+  };
+
+  // 🔒 VALIDATION: Handle time input blur with cleanup
   const handleTimeBlur = (field: 'wakeUp' | 'phoneOff', value: string) => {
-    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-    if (value && !timeRegex.test(value)) {
+    if (value && !isValidTime(value)) {
       // Clear invalid value on blur
       updateEntry({
         sleepData: { 
@@ -86,10 +160,23 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
           [field]: '' 
         }
       });
+      setValidationErrors(prev => [...prev, `Invalid ${field} time format`]);
     }
   };
 
+  // 🔒 VALIDATION: Enhanced save with validation
   const handleSaveEntry = async () => {
+    // Pre-save validation
+    const validation = validateJournalEntry(currentEntry);
+    if (!validation.valid) {
+      setValidationErrors(validation.errors);
+      alert(`Please fix the following errors:\n${validation.errors.join('\n')}`);
+      return;
+    }
+
+    // Clear any existing validation errors
+    setValidationErrors([]);
+    
     setIsSaving(true);
     try {
       await saveEntry();
@@ -97,10 +184,9 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
       // Auto-generate REAL AI reflection after saving using journal-reflect
       if (currentEntry.content && currentEntry.content.trim().length > 10) {
         try {
-          await getAIReflection(); // This calls the real journal-reflect function
+          await getAIReflection();
         } catch (error) {
           console.error('Error getting AI reflection:', error);
-          // Fallback to simple message if AI fails
           updateEntry({ 
             ai_reflection: "AI reflection temporarily unavailable. Your journal entry has been saved successfully.",
             context_data: {
@@ -144,7 +230,6 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
           }
         } catch (error) {
           console.error('Error getting meal analysis:', error);
-          // Fallback to default message
           updateEntry({ 
             meal_ai_reflection: "Based on your nutrition log, you've maintained a balanced approach to eating today. Consider incorporating more leafy greens and ensuring adequate hydration throughout the day for optimal energy levels."
           });
@@ -153,7 +238,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
         }
       }
 
-      // Show saved state but don't collapse
+      // Show saved state
       setShowSavedState(true);
       setTimeout(() => {
         setShowSavedState(false);
@@ -161,12 +246,13 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
 
     } catch (error) {
       console.error('Error saving entry:', error);
+      setValidationErrors(['Failed to save entry. Please try again.']);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Collapsed state - just add professional styling to existing structure
+  // Collapsed state
   if (!isExpanded) {
     return (
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg shadow-purple-500/10">
@@ -189,7 +275,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
     );
   }
 
-  // Expanded state - YOUR EXACT ORIGINAL CODE with just container styling changed
+  // Expanded state
   return (
     <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg shadow-purple-500/10">
       
@@ -214,6 +300,18 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
         </div>
       </div>
 
+      {/* 🔒 VALIDATION ERRORS DISPLAY */}
+      {validationErrors.length > 0 && (
+        <div className="mx-6 mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+          <h4 className="text-red-400 font-medium text-sm mb-2">Please fix these issues:</h4>
+          <ul className="text-red-300 text-xs space-y-1">
+            {validationErrors.map((error, index) => (
+              <li key={index}>• {error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Main Content - Grid Layout */}
       <div className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -224,23 +322,33 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
             {/* Journal Entry Header */}
             <div className="flex items-center justify-between">
               <h4 className="text-lg font-semibold text-white">Journal Entry</h4>
-              <button
-                onClick={() => setIsJournalExpanded(true)}
-                className="p-2 rounded-xl transition-all bg-white/5 text-white/60"
-              >
-                <Maximize2 size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-white/40">
+                  {currentEntry.content.length}/10,000
+                </span>
+                <button
+                  onClick={() => setIsJournalExpanded(true)}
+                  className="p-2 rounded-xl transition-all bg-white/5 text-white/60"
+                >
+                  <Maximize2 size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Main Journal Textarea */}
             <div className="relative">
               <textarea
                 value={currentEntry.content}
-                onChange={(e) => updateEntry({ content: e.target.value })}
+                onChange={(e) => handleContentUpdate('content', e.target.value)}
                 placeholder="How was your day? What thoughts are flowing through your mind?"
-                className="w-full h-[500px] p-4 rounded-2xl border resize-none bg-white/5 border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base backdrop-blur-sm"
+                maxLength={10000}
+                className={`w-full h-[500px] p-4 rounded-2xl border resize-none bg-white/5 border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base backdrop-blur-sm ${
+                  currentEntry.content.length > 9000 ? 'border-yellow-500/50' : ''
+                } ${currentEntry.content.length >= 10000 ? 'border-red-500/50' : ''}`}
               />
-              <div className="absolute bottom-3 right-3 text-xs text-white/40">
+              <div className={`absolute bottom-3 right-3 text-xs ${
+                currentEntry.content.length > 9000 ? 'text-yellow-400' : 'text-white/40'
+              } ${currentEntry.content.length >= 10000 ? 'text-red-400' : ''}`}>
                 {currentEntry.content.length} characters
               </div>
             </div>
@@ -282,20 +390,28 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
 
             {/* Meals Section */}
             <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
-                  <ChefHat size={14} className="text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                    <ChefHat size={14} className="text-white" />
+                  </div>
+                  <label className="text-base font-semibold text-white">
+                    Today's Nutrition
+                  </label>
                 </div>
-                <label className="text-base font-semibold text-white">
-                  Today's Nutrition
-                </label>
+                <span className="text-xs text-white/40">
+                  {(currentEntry.meals || '').length}/2,000
+                </span>
               </div>
               
               <textarea
                 value={currentEntry.meals || ''}
-                onChange={(e) => updateEntry({ meals: e.target.value })}
+                onChange={(e) => handleContentUpdate('meals', e.target.value)}
                 placeholder="What nourished your body today?"
-                className="w-full h-32 p-4 rounded-2xl border resize-none bg-white/5 border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm backdrop-blur-sm"
+                maxLength={2000}
+                className={`w-full h-32 p-4 rounded-2xl border resize-none bg-white/5 border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm backdrop-blur-sm ${
+                  (currentEntry.meals || '').length > 1800 ? 'border-yellow-500/50' : ''
+                } ${(currentEntry.meals || '').length >= 2000 ? 'border-red-500/50' : ''}`}
               />
             </div>
 
@@ -332,14 +448,12 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
           {/* Right Side - Sleep & Metrics (1 column) */}
           <div className="space-y-6">
             
-            {/* Sleep Tracking - Apple Design Language */}
+            {/* Sleep Tracking */}
             <div className="relative p-8 rounded-3xl overflow-hidden bg-blue-500/10 border border-blue-500/20 backdrop-blur-xl">
-              {/* Animated Background Gradient */}
               <div className="absolute inset-0 opacity-30">
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/20 via-purple-500/10 to-indigo-500/20 animate-pulse"></div>
               </div>
               
-              {/* Header with Icon Animation */}
               <div className="relative flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-3">
                   <div className="relative">
@@ -354,13 +468,11 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                 </div>
               </div>
 
-              {/* Time Input Cards - Vertical Stack with WIDER GRAY CONTAINERS */}
+              {/* Time Input Cards */}
               <div className="space-y-4 mb-6 -mx-6">
                 {/* Wake Up Time */}
                 <div className="group relative">
                   <div className="relative p-4 rounded-2xl transition-all duration-500 ease-out bg-white/5 border border-white/10 backdrop-blur-sm">
-                    
-                    {/* Floating Icon and Label - Top Left */}
                     <div className="flex items-center gap-2 mb-4">
                       <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-lg transition-all duration-300">
                         <Sun size={12} className="text-white" />
@@ -370,7 +482,6 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                       </div>
                     </div>
                     
-                    {/* Time Input - Centered */}
                     <div className="flex justify-center">
                       <input
                         key={`wakeUp-${currentEntry.date}`}
@@ -378,24 +489,21 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                         value={currentEntry.sleepData?.wakeUp || ''}
                         onChange={e => handleTimeChange('wakeUp', e.target.value)}
                         onBlur={e => handleTimeBlur('wakeUp', e.target.value)}
-                        className="px-4 py-3 rounded-xl border transition-all duration-300 font-mono text-xl font-bold text-center tracking-wider bg-white/5 border-white/20 text-white focus:border-orange-500/80 focus:outline-none focus:ring-2 focus:ring-orange-500/20 backdrop-blur-sm"
+                        className={`px-4 py-3 rounded-xl border transition-all duration-300 font-mono text-xl font-bold text-center tracking-wider bg-white/5 border-white/20 text-white focus:border-orange-500/80 focus:outline-none focus:ring-2 focus:ring-orange-500/20 backdrop-blur-sm ${
+                          currentEntry.sleepData?.wakeUp && !isValidTime(currentEntry.sleepData.wakeUp) ? 'border-red-500/50' : ''
+                        }`}
                         style={{
                           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif',
                           width: '180px'
                         }}
                       />
                     </div>
-                    
-                    {/* Animated Border */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/50 to-yellow-500/50 opacity-0 transition-opacity duration-500 pointer-events-none"></div>
                   </div>
                 </div>
 
                 {/* Phone Off Time */}
                 <div className="group relative">
                   <div className="relative p-4 rounded-2xl transition-all duration-500 ease-out bg-white/5 border border-white/10 backdrop-blur-sm">
-                    
-                    {/* Floating Icon and Label - Top Left */}
                     <div className="flex items-center gap-2 mb-4">
                       <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg transition-all duration-300">
                         <Moon size={12} className="text-white" />
@@ -405,7 +513,6 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                       </div>
                     </div>
                     
-                    {/* Time Input - Centered */}
                     <div className="flex justify-center">
                       <input
                         key={`phoneOff-${currentEntry.date}`}
@@ -413,36 +520,31 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                         value={currentEntry.sleepData?.phoneOff || ''}
                         onChange={e => handleTimeChange('phoneOff', e.target.value)}
                         onBlur={e => handleTimeBlur('phoneOff', e.target.value)}
-                        className="px-4 py-3 rounded-xl border transition-all duration-300 font-mono text-xl font-bold text-center tracking-wider bg-white/5 border-white/20 text-white focus:border-blue-500/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm"
+                        className={`px-4 py-3 rounded-xl border transition-all duration-300 font-mono text-xl font-bold text-center tracking-wider bg-white/5 border-white/20 text-white focus:border-blue-500/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm ${
+                          currentEntry.sleepData?.phoneOff && !isValidTime(currentEntry.sleepData.phoneOff) ? 'border-red-500/50' : ''
+                        }`}
                         style={{
                           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif',
                           width: '180px'
                         }}
                       />
                     </div>
-                    
-                    {/* Animated Border */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/50 to-purple-500/50 opacity-0 transition-opacity duration-500 pointer-events-none"></div>
                   </div>
                 </div>
               </div>
               
-              {/* Sleep Quality Section */}
+              {/* Sleep Quality Section - Same as before */}
               <div className="relative">
-                {/* Title */}
                 <div className="text-lg font-semibold mb-6 text-center text-white">
                   How did you sleep?
                 </div>
                 
-                {/* Emoji Selection - 2x2x1 Grid Layout */}
                 <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mb-4">
-                  {/* First Row - 2 emojis */}
                   {['😫', '😔'].map((emoji, index) => {
                     const isSelected = currentEntry.sleepData?.quality === emoji;
                     const labels = ['Terrible', 'Poor'];
                     return (
                       <div key={emoji} className="relative group">
-                        {/* Selection Ring - Static when selected */}
                         {isSelected && (
                           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/40 to-blue-500/40"></div>
                         )}
@@ -451,7 +553,6 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                           type="button"
                           onClick={(event) => {
                             setSleepQuality(emoji as any);
-                            // Trigger one-time wave effect
                             const button = event.currentTarget;
                             button.classList.add('emoji-selected');
                             setTimeout(() => button.classList.remove('emoji-selected'), 1000);
@@ -469,15 +570,10 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                             {labels[index]}
                           </span>
                           
-                          {/* Hover Glow */}
-                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-0 transition-opacity duration-300"></div>
-                          
-                          {/* Static Glow for Selected */}
                           {isSelected && (
                             <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-purple-500/30 to-blue-500/30 blur-lg opacity-50"></div>
                           )}
                           
-                          {/* One-time Wave Effect on Selection */}
                           <div className="absolute inset-0 rounded-2xl bg-purple-500/30 opacity-0 pointer-events-none wave-ring"></div>
                           <div className="absolute inset-0 rounded-2xl bg-purple-500/20 opacity-0 pointer-events-none wave-ring-2"></div>
                         </button>
@@ -485,13 +581,11 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                     );
                   })}
                   
-                  {/* Second Row - 2 emojis */}
                   {['😐', '😊'].map((emoji, index) => {
                     const isSelected = currentEntry.sleepData?.quality === emoji;
                     const labels = ['Okay', 'Good'];
                     return (
                       <div key={emoji} className="relative group">
-                        {/* Selection Ring - Static when selected */}
                         {isSelected && (
                           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/40 to-blue-500/40"></div>
                         )}
@@ -512,10 +606,8 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                             {labels[index]}
                           </span>
                           
-                          {/* Hover Glow */}
                           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                           
-                          {/* Static Glow for Selected */}
                           {isSelected && (
                             <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-purple-500/30 to-blue-500/30 blur-lg opacity-50"></div>
                           )}
@@ -525,14 +617,12 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                   })}
                 </div>
                 
-                {/* Third Row - 1 emoji centered */}
                 <div className="flex justify-center">
                   {['🤩'].map((emoji, index) => {
                     const isSelected = currentEntry.sleepData?.quality === emoji;
                     const labels = ['Amazing'];
                     return (
                       <div key={emoji} className="relative group w-32">
-                        {/* Selection Ring - Static when selected */}
                         {isSelected && (
                           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/40 to-blue-500/40"></div>
                         )}
@@ -553,10 +643,8 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                             {labels[index]}
                           </span>
                           
-                          {/* Hover Glow */}
                           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                           
-                          {/* Static Glow for Selected */}
                           {isSelected && (
                             <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-purple-500/30 to-blue-500/30 blur-lg opacity-50"></div>
                           )}
@@ -567,7 +655,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                 </div>
               </div>
               
-              {/* Subtle Floating Particles */}
+              {/* Floating Particles */}
               <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                 {[...Array(6)].map((_, i) => (
                   <div
@@ -584,14 +672,12 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
               </div>
             </div>
 
-            {/* Daily Metrics - Compact Apple Style */}
+            {/* Daily Metrics */}
             <div className="relative p-6 rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-xl">
-              {/* Subtle Background Gradient */}
               <div className="absolute inset-0 opacity-20">
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-500/10 via-blue-500/5 to-emerald-500/10"></div>
               </div>
               
-              {/* Header */}
               <div className="relative flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg">
@@ -603,9 +689,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                 </div>
               </div>
 
-              {/* Horizontal Metrics Layout */}
               <div className="space-y-5">
-                
                 {/* Day Rating */}
                 <div className="group">
                   <div className="flex items-center justify-between mb-3">
@@ -620,7 +704,6 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                     </div>
                   </div>
                   
-                  {/* Horizontal Slider */}
                   <div className="relative">
                     <input
                       type="range"
@@ -628,14 +711,13 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                       max="5"
                       step="0.1"
                       value={currentEntry.dayRating || 3}
-                      onChange={(e) => updateEntry({ dayRating: parseFloat(e.target.value) })}
+                      onChange={(e) => handleContentUpdate('dayRating', parseFloat(e.target.value))}
                       className="slider w-full h-2 rounded-full appearance-none cursor-pointer transition-all duration-300 focus:outline-none"
                       style={{
                         background: `linear-gradient(to right, #8b5cf6 0%, #a855f7 ${((currentEntry.dayRating || 3) - 1) * 25}%, rgba(255,255,255,0.1) ${((currentEntry.dayRating || 3) - 1) * 25}%, rgba(255,255,255,0.1) 100%)`
                       }}
                     />
                     
-                    {/* Value Labels */}
                     <div className="flex justify-between mt-1 px-1">
                       {[1, 2, 3, 4, 5].map(value => (
                         <span 
@@ -668,7 +750,6 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                     </div>
                   </div>
                   
-                  {/* Horizontal Slider */}
                   <div className="relative">
                     <input
                       type="range"
@@ -676,20 +757,19 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
                       max="10"
                       step="0.1"
                       value={currentEntry.miles || 0}
-                      onChange={(e) => updateEntry({ miles: parseFloat(e.target.value) })}
+                      onChange={(e) => handleContentUpdate('miles', parseFloat(e.target.value))}
                       className="slider-miles w-full h-2 rounded-full appearance-none cursor-pointer transition-all duration-300 focus:outline-none"
                       style={{
                         background: `linear-gradient(to right, #10b981 0%, #059669 ${(currentEntry.miles || 0) * 10}%, rgba(255,255,255,0.1) ${(currentEntry.miles || 0) * 10}%, rgba(255,255,255,0.1) 100%)`
                       }}
                     />
                     
-                    {/* Value Labels */}
                     <div className="flex justify-between mt-1 px-1">
                       {[0, 2.5, 5, 7.5, 10].map(value => (
                         <span 
                           key={value}
                           className={`text-xs font-medium transition-all duration-300 ${
-                            Math.abs((currentEntry.miles || 0) - value) < 0.5
+                            Math.abs((currentEntry.miles || 0) - value) < 5
                               ? 'text-emerald-400'
                               : 'text-white/40'
                           }`}
@@ -705,11 +785,11 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
           </div>
         </div>
 
-        {/* Save Entry Button - Bottom Right */}
+        {/* Save Entry Button */}
         <div className="flex justify-end mt-6">
           <button
             onClick={handleSaveEntry}
-            disabled={isSaving || isLoadingAI}
+            disabled={isSaving || isLoadingAI || validationErrors.length > 0}
             style={{ 
               background: showSavedState ? '#10b981' : 'linear-gradient(to right, #7c3aed, #4f46e5)',
               padding: '12px 24px',
@@ -717,8 +797,8 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
               color: 'white',
               fontWeight: '600',
               border: 'none',
-              cursor: isSaving || isLoadingAI ? 'not-allowed' : 'pointer',
-              opacity: isSaving || isLoadingAI ? 0.5 : 1,
+              cursor: (isSaving || isLoadingAI || validationErrors.length > 0) ? 'not-allowed' : 'pointer',
+              opacity: (isSaving || isLoadingAI || validationErrors.length > 0) ? 0.5 : 1,
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -749,7 +829,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
         </div>
       </div>
       
-      {/* AI Reflection Expanded Modal */}
+      {/* AI Reflection Expanded Modal - Same as before */}
       {isAIReflectionExpanded && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -790,7 +870,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
         </div>
       )}
 
-      {/* Expanded Journal Modal */}
+      {/* Expanded Journal Modal - Same as before */}
       {isJournalExpanded && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -820,8 +900,9 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
             <div className="p-6">
               <textarea
                 value={currentEntry.content}
-                onChange={(e) => updateEntry({ content: e.target.value })}
+                onChange={(e) => handleContentUpdate('content', e.target.value)}
                 placeholder="Let your thoughts flow freely..."
+                maxLength={10000}
                 className="w-full h-96 p-6 rounded-2xl border resize-none bg-white/5 border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-lg backdrop-blur-sm"
                 autoFocus
               />
@@ -830,6 +911,7 @@ const JournalEntrySection: React.FC<JournalEntrySectionProps> = ({
         </div>
       )}
 
+      {/* Same CSS styles as before */}
       <style jsx>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }

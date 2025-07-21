@@ -12,22 +12,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // Create an authenticated Supabase client with proper Clerk token
-export const createAuthenticatedSupabaseClient = (token: string, userId: string) => {
+export const createAuthenticatedSupabaseClient = (token: string, userId?: string) => {
   if (!token) {
     throw new Error('No authentication token provided');
   }
   
+  // userId is optional - the JWT token contains user identification for RLS
+  // Only log warning if userId is missing, don't throw error
   if (!userId) {
-    throw new Error('No user ID provided');
+    console.debug('createAuthenticatedSupabaseClient called without userId - relying on JWT token for auth');
   }
 
-  // 🔧 FIXED: Removed the X-User-Id header that was causing CORS issues
-  // The user ID is already embedded in the JWT token from Clerk
   return createClient<Database>(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
         Authorization: `Bearer ${token}`
-        // 🔧 REMOVED: 'X-User-Id': userId - this caused CORS errors
       }
     },
     auth: {

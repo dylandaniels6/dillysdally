@@ -12,8 +12,11 @@ export default defineConfig(({ mode }) => {
       exclude: ['lucide-react'],
       include: ['pdfjs-dist']
     },
+
     define: {
       global: 'globalThis',
+      // Fix for __WS_TOKEN__ error
+      __WS_TOKEN__: JSON.stringify(''),
       // Only define the environment variables you actually use
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || ''),

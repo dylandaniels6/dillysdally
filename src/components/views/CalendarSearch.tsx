@@ -3,6 +3,7 @@ import { Search, X, Edit3, Mountain, Calendar, ChevronRight } from 'lucide-react
 import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../../context/AppContext';
 import { formatISODate, formatDate } from '../../utils/dateUtils';
+import DOMPurify from 'dompurify';
 
 interface SearchResult {
   id: string;
@@ -378,7 +379,12 @@ const CalendarSearch: React.FC<CalendarSearchProps> = ({ isOpen, onClose, onSele
                           className={`text-sm leading-relaxed ${
                             settings.darkMode ? 'text-gray-300' : 'text-gray-600'
                           }`}
-                          dangerouslySetInnerHTML={{ __html: result.highlightedContent }}
+                          dangerouslySetInnerHTML={{ 
+                            __html: DOMPurify.sanitize(result.highlightedContent, {
+                              ALLOWED_TAGS: ['mark'],
+                              ALLOWED_ATTR: ['class']
+                            })
+                          }}
                         />
                         
                         <div className="flex items-center mt-2 text-xs">
